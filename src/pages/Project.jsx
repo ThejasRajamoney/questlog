@@ -296,11 +296,11 @@ function FocusTimerModule() {
 }
 
 const MODULE_DATA = [
-  { id: 'focus', icon: Timer, title: 'Focus Timer', color: 'text-violet-600', bg: 'bg-violet-50', content: <FocusTimerModule /> },
-  { id: 'flashcards', icon: BookOpen, title: 'AI Flashcards', color: 'text-indigo-600', bg: 'bg-indigo-50', content: <FlashcardModule /> },
-  { id: 'syllabus', icon: GraduationCap, title: 'Syllabus Scan', color: 'text-emerald-600', bg: 'bg-emerald-50', content: <SyllabusModule /> },
-  { id: 'heatmap', icon: Grid, title: 'Heatmap', color: 'text-orange-600', bg: 'bg-orange-50', content: <HeatmapModule /> },
-  { id: 'gpa', icon: Calculator, title: 'GPA Predictor', color: 'text-amber-600', bg: 'bg-amber-50', content: <GPAModule /> },
+  { id: 'focus', icon: Timer, title: 'Focus Timer', color: 'text-violet-600', bg: 'bg-violet-50', Component: FocusTimerModule },
+  { id: 'flashcards', icon: BookOpen, title: 'AI Flashcards', color: 'text-indigo-600', bg: 'bg-indigo-50', Component: FlashcardModule },
+  { id: 'syllabus', icon: GraduationCap, title: 'Syllabus Scan', color: 'text-emerald-600', bg: 'bg-emerald-50', Component: SyllabusModule },
+  { id: 'heatmap', icon: Grid, title: 'Heatmap', color: 'text-orange-600', bg: 'bg-orange-50', Component: HeatmapModule },
+  { id: 'gpa', icon: Calculator, title: 'GPA Predictor', color: 'text-amber-600', bg: 'bg-amber-50', Component: GPAModule },
 ];
 
 export function Project() {
@@ -321,7 +321,7 @@ export function Project() {
               <h3 className="font-black text-gray-800 text-sm uppercase tracking-wider">{mod.title}</h3>
             </div>
             <div className="p-4 flex-1">
-              {mod.content}
+              <mod.Component />
             </div>
           </div>
         ))}

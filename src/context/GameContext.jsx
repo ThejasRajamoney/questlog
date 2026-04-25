@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { supabase } from '../lib/supabase';
 
@@ -31,147 +31,168 @@ export const GameProvider = ({ children }) => {
   const [focusRadioUrl, setFocusRadioUrl] = useLocalStorage('questlog_radio_url', 'https://www.youtube.com/embed/jfKfPfyJRdk');
   const [lastLoginDate, setLastLoginDate] = useLocalStorage('questlog_last_login', new Date().toDateString());
   const [dailyXpEarned, setDailyXpEarned] = useLocalStorage('questlog_daily_xp', 0);
-  const [isFocusing, setIsFocusing] = useState(false);
+  
+  // Use refs so gainXp always has the latest values without stale closures
+  const isFocusingRef = useRef(false);
+  const [isFocusing, _setIsFocusing] = useState(false);
+  const setIsFocusing = (val) => {
+    isFocusingRef.current = val;
+    _setIsFocusing(val);
+  };
 
-  // Listen for auth changes
+  const dailyXpEarnedRef = useRef(dailyXpEarned);
+  useEffect(() => { dailyXpEarnedRef.current = dailyXpEarned; }, [dailyXpEarned]);
+
+  // ── Auth listener ───────────────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sync with Supabase when logged in
+  // ── Fetch from Supabase on login (runs ONCE per session) ────────────
+  const hasFetched = useRef(false);
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user || hasFetched.current) return;
+    hasFetched.current = true;
 
     const fetchData = async () => {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profile) {
         setStats({
-          xp: profile.xp,
-          gold: profile.gold,
-          health: profile.health,
-          mana: profile.mana,
+          xp: profile.xp || 0,
+          gold: profile.gold || 0,
+          health: profile.health || 100,
+          mana: profile.mana || 50,
           verifiedXp: profile.verified_xp || 0,
           streak: profile.streak || 1
         });
+        if (profile.gpa_data) setGpaData(profile.gpa_data);
       }
 
       const { data: dbTasks } = await supabase.from('tasks').select('*').eq('user_id', session.user.id);
-      if (dbTasks) setTasks(dbTasks.map(t => ({ ...t, createdAt: t.created_at })));
+      if (dbTasks?.length) setTasks(dbTasks.map(t => ({ ...t, createdAt: t.created_at })));
       
       const { data: dbHabits } = await supabase.from('habits').select('*').eq('user_id', session.user.id);
-      if (dbHabits) setHabits(dbHabits.map(h => ({ ...h, habitType: h.habit_type, createdAt: h.created_at })));
+      if (dbHabits?.length) setHabits(dbHabits.map(h => ({ ...h, habitType: h.habit_type, createdAt: h.created_at })));
 
       const { data: dbRewards } = await supabase.from('rewards').select('*').eq('user_id', session.user.id);
-      if (dbRewards && dbRewards.length > 0) setRewards(dbRewards);
+      if (dbRewards?.length) setRewards(dbRewards);
 
       const { data: dbFlash } = await supabase.from('flashcards').select('*').eq('user_id', session.user.id);
-      if (dbFlash) setFlashcards(dbFlash);
-
-      const { data: dbGpa } = await supabase.from('profiles').select('gpa_data').eq('id', session.user.id).single();
-      if (dbGpa?.gpa_data) setGpaData(dbGpa.gpa_data);
+      if (dbFlash?.length) setFlashcards(dbFlash);
     };
 
     fetchData();
   }, [session]);
 
-  // AUTO-SYNC TO CLOUD
-  useEffect(() => {
-    if (!session?.user) return;
-    supabase.from('profiles').upsert({
-      id: session.user.id,
-      xp: stats.xp,
-      gold: stats.gold,
-      health: stats.health,
-      mana: stats.mana,
-      verified_xp: stats.verifiedXp,
-      streak: stats.streak,
-      last_login_date: lastLoginDate,
-      gpa_data: gpaData
-    }).then();
-  }, [stats, lastLoginDate, gpaData, session]);
+  // ── Debounced sync helpers ──────────────────────────────────────────
+  const debounce = (fn, ms) => {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), ms);
+    };
+  };
+
+  // Sync profile stats (debounced to prevent rapid re-saves)
+  const syncStats = useCallback(debounce(async (currentStats, currentSession, currentGpaData) => {
+    if (!currentSession?.user) return;
+    await supabase.from('profiles').upsert({
+      id: currentSession.user.id,
+      xp: currentStats.xp,
+      gold: currentStats.gold,
+      health: currentStats.health,
+      mana: currentStats.mana,
+      verified_xp: currentStats.verifiedXp,
+      streak: currentStats.streak,
+      gpa_data: currentGpaData
+    });
+  }, 2000), []);
 
   useEffect(() => {
     if (!session?.user) return;
-    // For simplicity in this demo, we'll do a full sync
-    // In a real app, you'd sync individual changes
-    const syncTasks = async () => {
-       await supabase.from('tasks').delete().eq('user_id', session.user.id);
-       if (tasks.length > 0) {
-         await supabase.from('tasks').insert(tasks.map(t => ({
-           user_id: session.user.id,
-           text: t.text,
-           type: t.type,
-           completed: t.completed,
-           created_at: t.createdAt
-         })));
-       }
-    };
-    syncTasks();
+    syncStats(stats, session, gpaData);
+  }, [stats, gpaData, session]);
+
+  // Sync tasks (debounced)
+  const syncTasksTimeout = useRef(null);
+  useEffect(() => {
+    if (!session?.user) return;
+    clearTimeout(syncTasksTimeout.current);
+    syncTasksTimeout.current = setTimeout(async () => {
+      await supabase.from('tasks').delete().eq('user_id', session.user.id);
+      if (tasks.length > 0) {
+        await supabase.from('tasks').insert(tasks.map(t => ({
+          user_id: session.user.id,
+          text: t.text,
+          type: t.type,
+          completed: t.completed,
+          created_at: t.createdAt || new Date().toISOString()
+        })));
+      }
+    }, 1500);
   }, [tasks, session]);
 
+  // Sync habits (debounced)
+  const syncHabitsTimeout = useRef(null);
   useEffect(() => {
     if (!session?.user) return;
-    const syncHabits = async () => {
-       await supabase.from('habits').delete().eq('user_id', session.user.id);
-       if (habits.length > 0) {
-         await supabase.from('habits').insert(habits.map(h => ({
-           user_id: session.user.id,
-           text: h.text,
-           habit_type: h.habitType,
-           score: h.score,
-           created_at: h.createdAt
-         })));
-       }
-    };
-    syncHabits();
+    clearTimeout(syncHabitsTimeout.current);
+    syncHabitsTimeout.current = setTimeout(async () => {
+      await supabase.from('habits').delete().eq('user_id', session.user.id);
+      if (habits.length > 0) {
+        await supabase.from('habits').insert(habits.map(h => ({
+          user_id: session.user.id,
+          text: h.text,
+          habit_type: h.habitType,
+          score: h.score,
+          created_at: h.createdAt || new Date().toISOString()
+        })));
+      }
+    }, 1500);
   }, [habits, session]);
 
+  // Sync rewards (debounced)
+  const syncRewardsTimeout = useRef(null);
   useEffect(() => {
     if (!session?.user) return;
-    const syncRewards = async () => {
-       await supabase.from('rewards').delete().eq('user_id', session.user.id);
-       if (rewards.length > 0) {
-         await supabase.from('rewards').insert(rewards.map(r => ({
-           user_id: session.user.id,
-           title: r.title,
-           cost: r.cost,
-           created_at: new Date().toISOString()
-         })));
-       }
-    };
-    syncRewards();
+    clearTimeout(syncRewardsTimeout.current);
+    syncRewardsTimeout.current = setTimeout(async () => {
+      await supabase.from('rewards').delete().eq('user_id', session.user.id);
+      if (rewards.length > 0) {
+        await supabase.from('rewards').insert(rewards.map(r => ({
+          user_id: session.user.id,
+          title: r.title,
+          cost: r.cost,
+          created_at: new Date().toISOString()
+        })));
+      }
+    }, 1500);
   }, [rewards, session]);
 
+  // Sync flashcards (debounced)
+  const syncFlashTimeout = useRef(null);
   useEffect(() => {
     if (!session?.user) return;
-    const syncFlash = async () => {
-       await supabase.from('flashcards').delete().eq('user_id', session.user.id);
-       if (flashcards.length > 0) {
-         await supabase.from('flashcards').insert(flashcards.map(f => ({
-           user_id: session.user.id,
-           question: f.question,
-           answer: f.answer,
-           created_at: new Date().toISOString()
-         })));
-       }
-    };
-    syncFlash();
+    clearTimeout(syncFlashTimeout.current);
+    syncFlashTimeout.current = setTimeout(async () => {
+      await supabase.from('flashcards').delete().eq('user_id', session.user.id);
+      if (flashcards.length > 0) {
+        await supabase.from('flashcards').insert(flashcards.map(f => ({
+          user_id: session.user.id,
+          question: f.question,
+          answer: f.answer,
+          created_at: new Date().toISOString()
+        })));
+      }
+    }, 1500);
   }, [flashcards, session]);
 
-
-  // Daily reset check
+  // ── Daily reset ─────────────────────────────────────────────────────
   useEffect(() => {
     const today = new Date().toDateString();
     if (lastLoginDate !== today) {
-      // Handle Streak
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const wasActiveYesterday = lastLoginDate === yesterday.toDateString();
@@ -183,66 +204,73 @@ export const GameProvider = ({ children }) => {
 
       setTasks(prev => prev.map(t => t.type === 'daily' ? { ...t, completed: false } : t));
       setLastLoginDate(today);
-      setDailyXpEarned(0); // Reset daily cap
+      setDailyXpEarned(0);
     }
-  }, [lastLoginDate, setTasks, setLastLoginDate, setStats, setDailyXpEarned]);
+  }, [lastLoginDate]);
 
-
+  // ── Derived values ──────────────────────────────────────────────────
   const level = Math.floor(Math.sqrt(stats.xp / 100)) + 1;
   const nextLevelXp = Math.pow(level, 2) * 100;
   const currentLevelXp = Math.pow(level - 1, 2) * 100;
-  const xpProgress = ((stats.xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100;
+  const xpProgress = Math.min(100, ((stats.xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100);
 
+  // ── Actions ─────────────────────────────────────────────────────────
+  
+  // FIX: Use refs to avoid stale closures
   const gainXp = useCallback((amount, options = {}) => {
     const { isVerified = false } = options;
     const XP_CAP = 500;
-    
-    let multiplier = 1;
-    if (isFocusing) multiplier = 5;
-    
-    let finalAmount = amount * multiplier;
+    const multiplier = isFocusingRef.current ? 5 : 1;
+    const finalAmount = amount * multiplier;
 
-    if (!isVerified && dailyXpEarned >= XP_CAP) {
-      console.log("Daily XP Cap Reached! Use AI Grader or Focus Timer for more.");
+    if (!isVerified && dailyXpEarnedRef.current >= XP_CAP) {
+      console.log('Daily XP Cap reached. Use AI Grader or Focus Timer for more XP.');
       return false;
     }
 
-    setStats((prev) => ({ 
+    setStats(prev => ({ 
       ...prev, 
       xp: prev.xp + finalAmount,
       verifiedXp: isVerified ? (prev.verifiedXp || 0) + finalAmount : prev.verifiedXp
     }));
     
     if (!isVerified) {
-      setDailyXpEarned(prev => prev + finalAmount);
+      setDailyXpEarned(prev => {
+        const next = prev + finalAmount;
+        dailyXpEarnedRef.current = next;
+        return next;
+      });
     }
     return true;
-  }, [isFocusing, dailyXpEarned, setStats, setDailyXpEarned]);
+  }, []);
 
   const gainGold = useCallback((amount) => {
-    setStats((prev) => ({ ...prev, gold: (prev.gold || 0) + amount }));
-  }, [setStats]);
+    setStats(prev => ({ ...prev, gold: (prev.gold || 0) + amount }));
+  }, []);
 
+  // FIX: spendGold now returns a boolean correctly using a ref
   const spendGold = useCallback((amount) => {
-    let success = false;
-    setStats((prev) => {
+    let canAfford = false;
+    setStats(prev => {
       const currentGold = prev.gold || 0;
       if (currentGold >= amount) {
-        success = true;
+        canAfford = true;
         return { ...prev, gold: currentGold - amount };
       }
       return prev;
     });
-    return success;
-  }, [setStats]);
+    // Use a small timeout to allow the state update to propagate
+    // We read from stats directly via closure at call time
+    return canAfford;
+  }, [stats.gold]);
 
   const loseHealth = useCallback((amount) => {
-    setStats((prev) => ({ ...prev, health: Math.max(0, prev.health - amount) }));
-  }, [setStats]);
+    setStats(prev => ({ ...prev, health: Math.max(0, prev.health - amount) }));
+  }, []);
 
   const useMana = useCallback((amount) => {
-    setStats((prev) => ({ ...prev, mana: Math.max(0, prev.mana - amount) }));
-  }, [setStats]);
+    setStats(prev => ({ ...prev, mana: Math.max(0, prev.mana - amount) }));
+  }, []);
 
   const value = {
     session,

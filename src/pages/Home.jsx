@@ -27,6 +27,10 @@ function HabitItem({ habit, onPlus, onMinus, onDelete }) {
     setXpPop(true);
   };
 
+  const handleMinus = () => {
+    if (onMinus) onMinus(habit.id);
+  };
+
   const typeColor = {
     good: 'bg-sky-400',
     bad: 'bg-orange-400',
@@ -36,15 +40,22 @@ function HabitItem({ habit, onPlus, onMinus, onDelete }) {
   return (
     <div className="group relative flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 slide-up">
       {/* Colored circle button */}
-      <button
-        onClick={handlePlus}
-        className={clsx(
-          "w-11 h-11 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform active:scale-90 shadow-md",
-          typeColor
-        )}
-      >
-        {habit.habitType === 'bad' ? '−' : '+'}
-      </button>
+      {(habit.habitType === 'both' || habit.habitType === 'good') && (
+        <button
+          onClick={handlePlus}
+          className="w-11 h-11 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform active:scale-90 shadow-md bg-sky-400"
+        >
+          +
+        </button>
+      )}
+      {(habit.habitType === 'both' || habit.habitType === 'bad') && (
+        <button
+          onClick={handleMinus}
+          className="w-11 h-11 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform active:scale-90 shadow-md bg-orange-400"
+        >
+          −
+        </button>
+      )}
 
       {/* Label */}
       <span className="flex-1 text-gray-800 font-semibold text-[15px] leading-tight">
@@ -179,7 +190,7 @@ function SectionCard({ title, emoji, children }) {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────
 export function Home() {
-  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, stats, level, xpProgress } = useGame();
+  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, loseHealth } = useGame();
 
   // Task actions
   const addTask = (type) => (text) => {
@@ -224,7 +235,12 @@ export function Home() {
     gainGold(1);
   };
 
-  const deleteHabit = (id) => setHabits((prev) => prev.filter((h) => h.id !== id));
+  const penaltyHabit = (id) => {
+    setHabits(prev => prev.map(h => h.id === id ? { ...h, score: Math.max(0, h.score - 1) } : h));
+    loseHealth(5);
+  };
+
+  const deleteHabit = (id) => setHabits(prev => prev.filter(h => h.id !== id));
 
   const dailies = tasks.filter((t) => t.type === 'daily');
   const todos = tasks.filter((t) => t.type === 'todo');
@@ -248,6 +264,7 @@ export function Home() {
             key={h.id}
             habit={h}
             onPlus={scoreHabit}
+            onMinus={penaltyHabit}
             onDelete={deleteHabit}
           />
         ))}

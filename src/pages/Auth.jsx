@@ -160,7 +160,13 @@ export function Auth() {
         <div className="text-center pt-4 border-t border-white/5">
           <button 
             onClick={() => {
-              gsap.to(cardRef.current, { opacity: 0, x: isSignUp ? 20 : -20, duration: 0.3, onComplete: () => setIsSignUp(!isSignUp) });
+              gsap.to(cardRef.current, { 
+                opacity: 0, x: isSignUp ? 20 : -20, duration: 0.3, 
+                onComplete: () => {
+                  setIsSignUp(!isSignUp);
+                  gsap.to(cardRef.current, { opacity: 1, x: 0, duration: 0.3 });
+                }
+              });
             }}
             className="text-[11px] font-black text-white/40 hover:text-emerald-400 tracking-widest uppercase transition-colors flex items-center justify-center gap-2 mx-auto"
           >
