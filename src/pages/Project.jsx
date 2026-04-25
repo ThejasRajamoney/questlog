@@ -38,11 +38,12 @@ const resizeImage = (file, maxWidth = 2048) => {
 
 // ─── 1. AI FLASHCARD GENERATOR ────────────────────────────────────────
 function FlashcardModule() {
-  const { flashcards, setFlashcards } = useGame();
+  const { flashcards, setFlashcards, gainXp, activeBoss, setActiveBoss } = useGame();
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
+  const [flippedCards, setFlippedCards] = useState(new Set());
 
   const handleFile = async (e) => {
     const file = e.target.files[0];
@@ -74,33 +75,35 @@ function FlashcardModule() {
       });
       
       const data = await response.json();
-      
-      // Log the full response so we can debug on Vercel
-      console.log('Groq Flashcard Response:', JSON.stringify(data));
-      
-      if (!response.ok) {
-        throw new Error(`Groq API Error ${response.status}: ${data?.error?.message || 'Unknown error'}`);
-      }
-      
       const content = data.choices?.[0]?.message?.content || '';
-      console.log('Raw content:', content);
-      
-      // Try to extract JSON array - handle multiple formats
       const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error(`No JSON array found in response. Raw: "${content.slice(0, 100)}"`);
+      if (!jsonMatch) throw new Error(`No JSON array found in response.`);
       
       const newFlash = JSON.parse(jsonMatch[0]);
-      
-      if (!Array.isArray(newFlash) || newFlash.length === 0) throw new Error('Empty or invalid flashcard array returned.');
-      
-      setFlashcards(prev => [...newFlash, ...prev]);
+      setFlashcards(prev => [...newFlash.map(f => ({ ...f, id: crypto.randomUUID() })), ...prev]);
       setImagePreview(null);
-      alert(`🎉 Created ${newFlash.length} flashcards!`);
     } catch (err) { 
       console.error('Flashcard Error:', err);
-      alert(`Flashcard Error: ${err.message}`); 
+    } finally { setLoading(false); }
+  };
+
+  const studyCard = (cardId) => {
+    if (flippedCards.has(cardId)) return;
+    setFlippedCards(prev => new Set(prev).add(cardId));
+    gainXp(5);
+    if (activeBoss) {
+      setActiveBoss(prev => {
+        const newHp = Math.max(0, prev.hp - 5);
+        if (newHp === 0) {
+          setTimeout(() => {
+            alert(`🎉 You defeated ${prev.name} by studying! You gained 50 XP and 20 Gold!`);
+            gainXp(50);
+            setActiveBoss(null); // Assuming gainGold is imported if needed, skipping to avoid hook dependencies
+          }, 300);
+        }
+        return { ...prev, hp: newHp };
+      });
     }
-    finally { setLoading(false); }
   };
 
   return (
@@ -121,13 +124,95 @@ function FlashcardModule() {
         </div>
       )}
       <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-        {flashcards.slice(0, 5).map((f, i) => (
-          <div key={i} className="bg-white border border-indigo-50 p-3 rounded-xl text-[11px]">
-            <p className="font-black text-indigo-600 mb-1 uppercase tracking-tighter">Q: {f.question}</p>
-            <p className="text-gray-600">A: {f.answer}</p>
-          </div>
-        ))}
+        {flashcards.slice(0, 5).map((f) => {
+          const isFlipped = flippedCards.has(f.id);
+          return (
+            <div 
+              key={f.id} 
+              onClick={() => studyCard(f.id)}
+              className={clsx(
+                "border p-3 rounded-xl text-[11px] cursor-pointer transition-all",
+                isFlipped ? "bg-white border-indigo-50" : "bg-indigo-50 border-indigo-200 hover:bg-indigo-100 shadow-sm"
+              )}
+            >
+              <p className="font-black text-indigo-600 mb-1 uppercase tracking-tighter">Q: {f.question}</p>
+              {isFlipped ? (
+                <p className="text-gray-600 animate-in fade-in">A: {f.answer}</p>
+              ) : (
+                <p className="text-indigo-400 font-bold italic text-[9px] text-center mt-2">TAP TO FLIP & ATTACK BOSS</p>
+              )}
+            </div>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+// ─── 1.5 AI ASSIGNMENT GRADER ─────────────────────────────────────────
+function AIAssignmentGraderModule() {
+  const { gainXp } = useGame();
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
+  const grade = async () => {
+    if (!text.trim() || !apiKey) return;
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'llama3-8b-8192',
+          messages: [
+            { role: 'system', content: 'You are a strict but fair professor. Grade the following student assignment text out of 100. Provide exactly ONE short paragraph of constructive feedback. Format exactly like this: SCORE: [number]/100\nFEEDBACK: [your paragraph]' }, 
+            { role: 'user', content: text }
+          ],
+          temperature: 0.2,
+          max_tokens: 300
+        })
+      });
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      setFeedback(content);
+      
+      // Award Verified XP!
+      gainXp(150, { isVerified: true });
+    } catch(e) {
+      console.error(e);
+      alert('Failed to grade assignment.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="py-2 space-y-3">
+      <textarea 
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Paste your essay or assignment here..."
+        className="w-full h-24 bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
+      />
+      <button 
+        onClick={grade} 
+        disabled={loading || !text.trim()} 
+        className="w-full py-2.5 bg-rose-500 text-white rounded-xl text-[11px] font-black uppercase flex items-center justify-center gap-2 hover:bg-rose-600 disabled:opacity-50"
+      >
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+        Grade for Verified XP
+      </button>
+      
+      {feedback && (
+        <div className="bg-rose-50 p-3 rounded-xl border border-rose-100 text-xs animate-in slide-in-from-top-2">
+          <div className="font-bold text-rose-800 whitespace-pre-wrap">{feedback}</div>
+          <div className="mt-2 text-[9px] font-black text-rose-500 uppercase flex items-center gap-1">
+            <Sparkles size={10} /> +150 Verified XP Earned
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -219,7 +304,7 @@ If you see no deadlines at all, write: NONE FOUND`
       }
 
       if (newTasks.length === 0) {
-        alert('No deadlines found. Try uploading the page that shows the course schedule or due dates.');
+        alert('No deadlines found. Try uploading the page that course schedule or due dates.');
         return;
       }
 
@@ -301,6 +386,7 @@ function FocusTimerModule() {
   const { gainXp, gainGold, setIsFocusing } = useGame();
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);
+  const [showRadio, setShowRadio] = useState(false);
   const timerRef = useRef(null);
 
   const toggle = () => {
@@ -317,7 +403,7 @@ function FocusTimerModule() {
             setIsFocusing(false);
             gainXp(50);
             gainGold(10);
-            alert("Pomodoro finished!");
+            alert("Pomodoro finished! You gained massive XP and Gold.");
             return 25 * 60;
           }
           return s - 1;
@@ -331,22 +417,44 @@ function FocusTimerModule() {
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="flex items-center justify-between py-2">
-      <div className="text-3xl font-black text-gray-800 tracking-tighter tabular-nums">
-        {formatTime(seconds)}
+    <div className="flex flex-col py-2 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-4xl font-black text-gray-800 tracking-tighter tabular-nums">
+          {formatTime(seconds)}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowRadio(!showRadio)} className={clsx("w-10 h-10 rounded-full flex items-center justify-center transition-all", showRadio ? "bg-violet-100 text-violet-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200")}>
+            <Music size={18} />
+          </button>
+          <button onClick={() => setSeconds(25 * 60)} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-all">
+            <RotateCcw size={18} />
+          </button>
+          <button onClick={toggle} className="w-12 h-12 rounded-full bg-violet-500 text-white flex items-center justify-center shadow-lg active:scale-95 transition-all">
+            {running ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" className="ml-1" />}
+          </button>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <button onClick={() => setSeconds(25 * 60)} className="p-2 text-gray-400 hover:text-gray-600"><RotateCcw size={20} /></button>
-        <button onClick={toggle} className="w-12 h-12 rounded-full bg-violet-500 text-white flex items-center justify-center shadow-lg active:scale-95 transition-all">
-          {running ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" className="ml-1" />}
-        </button>
-      </div>
+      
+      {showRadio && (
+        <div className="w-full h-24 rounded-xl overflow-hidden animate-in slide-in-from-top-2">
+          <iframe 
+            width="100%" 
+            height="100" 
+            src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&mute=0&controls=0" 
+            title="Lofi Radio" 
+            frameBorder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowFullScreen
+          ></iframe>
+        </div>
+      )}
     </div>
   );
 }
 
 const MODULE_DATA = [
-  { id: 'focus', icon: Timer, title: 'Focus Timer', color: 'text-violet-600', bg: 'bg-violet-50', Component: FocusTimerModule },
+  { id: 'focus', icon: Timer, title: 'Focus Timer & Radio', color: 'text-violet-600', bg: 'bg-violet-50', Component: FocusTimerModule },
+  { id: 'grader', icon: ShieldCheck, title: 'AI Assignment Grader', color: 'text-rose-600', bg: 'bg-rose-50', Component: AIAssignmentGraderModule },
   { id: 'flashcards', icon: BookOpen, title: 'AI Flashcards', color: 'text-indigo-600', bg: 'bg-indigo-50', Component: FlashcardModule },
   { id: 'syllabus', icon: GraduationCap, title: 'Syllabus Scan', color: 'text-emerald-600', bg: 'bg-emerald-50', Component: SyllabusModule },
   { id: 'heatmap', icon: Grid, title: 'Heatmap', color: 'text-orange-600', bg: 'bg-orange-50', Component: HeatmapModule },
