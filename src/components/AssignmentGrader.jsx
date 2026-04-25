@@ -34,7 +34,7 @@ const STAR_LABELS = {
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export function AssignmentGrader() {
-  const [apiKey, setApiKey] = useLocalStorage('grok_api_key', '');
+  const [apiKey, setApiKey] = useLocalStorage('groq_api_key', '');
   const [showKeyInput, setShowKeyInput] = useState(!apiKey);
   const [tempKey, setTempKey] = useState(apiKey);
 
@@ -88,7 +88,7 @@ export function AssignmentGrader() {
 
   // ── API call ────────────────────────────────────────────────────────
   const gradeAssignment = async () => {
-    if (!apiKey) { setError('Please enter your Grok API key first.'); setShowKeyInput(true); return; }
+    if (!apiKey) { setError('Please enter your Groq API key first.'); setShowKeyInput(true); return; }
     if (!imageBase64) { setError('Please upload an image first.'); return; }
 
     setLoading(true);
@@ -111,14 +111,14 @@ Grading scale:
 5 stars = Excellent, outstanding work`;
 
     try {
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'grok-2-vision-1212',
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
           messages: [
             {
               role: 'user',
@@ -128,7 +128,6 @@ Grading scale:
                   type: 'image_url',
                   image_url: {
                     url: `data:image/jpeg;base64,${imageBase64}`,
-                    detail: 'high',
                   },
                 },
               ],
@@ -177,7 +176,7 @@ Grading scale:
           </div>
           <div>
             <h3 className="font-black text-white text-base">AI Assignment Grader</h3>
-            <p className="text-white/70 text-xs font-medium">Powered by Grok Vision</p>
+            <p className="text-white/70 text-xs font-medium">Powered by Groq Vision</p>
           </div>
         </div>
         <button
@@ -194,7 +193,7 @@ Grading scale:
         {/* API Key input */}
         {showKeyInput && (
           <div className="bg-violet-50 rounded-2xl p-4 space-y-2 slide-up">
-            <label className="text-xs font-bold text-violet-700 uppercase tracking-wide">Grok API Key</label>
+            <label className="text-xs font-bold text-violet-700 uppercase tracking-wide">Groq API Key</label>
             <div className="flex gap-2">
               <input
                 type="password"
@@ -212,8 +211,8 @@ Grading scale:
             </div>
             <p className="text-[11px] text-violet-400">
               Get your key at{' '}
-              <a href="https://console.x.ai" target="_blank" rel="noreferrer" className="underline font-bold">
-                console.x.ai
+              <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="underline font-bold">
+                console.groq.com
               </a>
               . Stored locally only.
             </p>
