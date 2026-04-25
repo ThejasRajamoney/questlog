@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export function Calendar() {
-  const { tasks } = useGame();
+  const { tasks, setTasks } = useGame();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -99,13 +99,13 @@ export function Calendar() {
               e.preventDefault();
               const text = e.target.elements.taskText.value;
               if (!text) return;
-              setTasks([{
+              setTasks(prev => [{
                 id: crypto.randomUUID(),
                 text,
                 type: 'todo',
                 completed: false,
                 createdAt: selectedDate.toISOString()
-              }, ...tasks]);
+              }, ...prev]);
               e.target.reset();
             }}
             className="flex gap-2"
