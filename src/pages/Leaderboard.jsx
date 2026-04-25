@@ -43,8 +43,43 @@ export function Leaderboard() {
 
   const myRank = globalUsers.findIndex(u => u.isCurrentUser) + 1;
 
+  // Use localStorage to track visits directly instead of through GameContext
+  const [visitCount, setVisitCount] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const visits = parseInt(localStorage.getItem('questlog_ranks_visits') || '0', 10);
+    if (visits < 2) {
+      setShowModal(true);
+      localStorage.setItem('questlog_ranks_visits', (visits + 1).toString());
+    }
+  }, []);
+
   return (
     <div className="space-y-4 pb-4">
+      {/* Verified Scholar Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-4 slide-up border border-gray-100">
+            <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto shadow-inner text-3xl">
+              🛡️
+            </div>
+            <div className="text-center space-y-2">
+              <h2 className="text-xl font-black text-gray-800">Become a Verified Scholar</h2>
+              <p className="text-sm text-gray-500 leading-relaxed font-medium">
+                Use the <span className="font-bold text-indigo-500">AI Assignment Grader</span> in the Project tab to earn Verified XP and a Shield badge!
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowModal(false)}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-xl transition-all active:scale-95 shadow-[0_10px_20px_rgba(16,185,129,0.2)]"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="pb-2">
         <p className="text-white/70 text-sm font-medium">The Global Ranks</p>
         <h1 className="text-white text-2xl font-black tracking-tight">Hall of Heroes</h1>
