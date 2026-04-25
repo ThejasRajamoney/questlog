@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Star, Sparkles, X, Loader2, Key, ChevronDown, ChevronUp, ImagePlus } from 'lucide-react';
+import { Upload, Star, Sparkles, X, Loader2, ImagePlus } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useLocalStorage } from '../hooks/useLocalStorage';
 
 // ─── Star Rating Display ───────────────────────────────────────────────────
 function StarRating({ stars }) {
@@ -34,9 +33,7 @@ const STAR_LABELS = {
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export function AssignmentGrader() {
-  const [apiKey, setApiKey] = useLocalStorage('groq_api_key', '');
-  const [showKeyInput, setShowKeyInput] = useState(!apiKey);
-  const [tempKey, setTempKey] = useState(apiKey);
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
 
   const [imageFile, setImageFile] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
@@ -88,7 +85,7 @@ export function AssignmentGrader() {
 
   // ── API call ────────────────────────────────────────────────────────
   const gradeAssignment = async () => {
-    if (!apiKey) { setError('Please enter your Groq API key first.'); setShowKeyInput(true); return; }
+    if (!apiKey) { setError('API Key is missing from the environment variables (.env file).'); return; }
     if (!imageBase64) { setError('Please upload an image first.'); return; }
 
     setLoading(true);
@@ -118,7 +115,7 @@ Grading scale:
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'llama-3.2-90b-vision-preview',
           messages: [
             {
               role: 'user',
@@ -153,15 +150,10 @@ Grading scale:
       if (!parsed.stars || !parsed.verdict) throw new Error('Unexpected response format.');
       setResult(parsed);
     } catch (err) {
-      setError(err.message || 'Something went wrong. Check your API key and try again.');
+      setError(err.message || 'Something went wrong while grading.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const saveKey = () => {
-    setApiKey(tempKey.trim());
-    setShowKeyInput(false);
   };
 
   const starInfo = result ? STAR_LABELS[result.stars] : null;
@@ -169,56 +161,17 @@ Grading scale:
   return (
     <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-            <Sparkles size={20} className="text-white" />
-          </div>
-          <div>
-            <h3 className="font-black text-white text-base">AI Assignment Grader</h3>
-            <p className="text-white/70 text-xs font-medium">Powered by Groq Vision</p>
-          </div>
+      <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
+          <Sparkles size={20} className="text-white" />
         </div>
-        <button
-          onClick={() => setShowKeyInput(!showKeyInput)}
-          className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
-        >
-          <Key size={12} />
-          API Key
-          {showKeyInput ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        </button>
+        <div>
+          <h3 className="font-black text-white text-base">AI Assignment Grader</h3>
+          <p className="text-white/70 text-xs font-medium">Powered by Groq Vision</p>
+        </div>
       </div>
 
       <div className="p-5 space-y-4">
-        {/* API Key input */}
-        {showKeyInput && (
-          <div className="bg-violet-50 rounded-2xl p-4 space-y-2 slide-up">
-            <label className="text-xs font-bold text-violet-700 uppercase tracking-wide">Groq API Key</label>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={tempKey}
-                onChange={(e) => setTempKey(e.target.value)}
-                placeholder="xai-..."
-                className="flex-1 bg-white border border-violet-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-400 font-mono"
-              />
-              <button
-                onClick={saveKey}
-                className="bg-violet-500 text-white text-xs font-black px-4 rounded-xl hover:bg-violet-600 transition-colors"
-              >
-                Save
-              </button>
-            </div>
-            <p className="text-[11px] text-violet-400">
-              Get your key at{' '}
-              <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="underline font-bold">
-                console.groq.com
-              </a>
-              . Stored locally only.
-            </p>
-          </div>
-        )}
-
         {/* Drop zone */}
         {!imagePreview ? (
           <div
@@ -238,7 +191,7 @@ Grading scale:
             </div>
             <div className="text-center">
               <p className="font-bold text-gray-600 text-sm">Drop your assignment here</p>
-              <p className="text-xs text-gray-400 mt-0.5">or tap to browse — JPG, PNG, PDF screenshot</p>
+              <p className="text-xs text-gray-400 mt-0.5">or tap to browse — JPG, PNG</p>
             </div>
             <input
               ref={inputRef}
