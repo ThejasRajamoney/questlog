@@ -54,7 +54,8 @@ function FlashcardModule() {
   };
 
   const generate = async () => {
-    if (!imageBase64 || !apiKey) return;
+    if (!apiKey) { alert('Error: VITE_GROQ_API_KEY is not set in Vercel environment variables!'); return; }
+    if (!imageBase64) return;
     setLoading(true);
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -63,7 +64,7 @@ function FlashcardModule() {
         body: JSON.stringify({
           model: 'llama-3.2-11b-vision-preview',
           messages: [{ role: 'user', content: [
-            { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a valid JSON array of objects: [{"question": "...", "answer": "..."}]' },
+            { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a valid JSON array of objects, no extra text: [{"question": "...", "answer": "..."}]' },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}],
           temperature: 0.1,
@@ -72,21 +73,28 @@ function FlashcardModule() {
       });
       
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
       
-      // Better extraction regex
+      // Log the full response so we can debug on Vercel
+      console.log('Groq Flashcard Response:', JSON.stringify(data));
+      
+      if (!response.ok) {
+        throw new Error(`Groq API Error ${response.status}: ${data?.error?.message || 'Unknown error'}`);
+      }
+      
+      const content = data.choices?.[0]?.message?.content || '';
+      console.log('Raw content:', content);
+      
+      // Try to extract JSON array - handle multiple formats
       const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('AI did not return a valid flashcard list.');
+      if (!jsonMatch) throw new Error(`No JSON array found in response. Raw: "${content.slice(0, 100)}"`);
       
       const newFlash = JSON.parse(jsonMatch[0]);
       
-      if (Array.isArray(newFlash)) {
-        setFlashcards(prev => [...newFlash, ...prev]);
-        setImagePreview(null);
-        alert(`🎉 Created ${newFlash.length} new flashcards!`);
-      } else {
-        throw new Error('Invalid format returned by AI.');
-      }
+      if (!Array.isArray(newFlash) || newFlash.length === 0) throw new Error('Empty or invalid flashcard array returned.');
+      
+      setFlashcards(prev => [...newFlash, ...prev]);
+      setImagePreview(null);
+      alert(`🎉 Created ${newFlash.length} flashcards!`);
     } catch (err) { 
       console.error('Flashcard Error:', err);
       alert(`Flashcard Error: ${err.message}`); 
