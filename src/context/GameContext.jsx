@@ -272,8 +272,14 @@ export const GameProvider = ({ children }) => {
     setStats(prev => ({ ...prev, mana: Math.max(0, prev.mana - amount) }));
   }, []);
 
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  }, []);
+
   const value = {
     session,
+    logout,
     stats,
     level,
     xpProgress,

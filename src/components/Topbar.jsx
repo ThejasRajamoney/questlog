@@ -1,9 +1,9 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
-import { Heart, Zap, Sparkles, Coins, Flame } from 'lucide-react';
+import { Heart, Zap, Sparkles, Coins, Flame, LogOut } from 'lucide-react';
 
 export function Topbar() {
-  const { stats, level, xpProgress } = useGame();
+  const { stats, level, xpProgress, logout } = useGame();
 
   const healthPct = stats.health;
   const manaPct = stats.mana;
@@ -69,14 +69,23 @@ export function Topbar() {
 
       {/* Gold & Stats */}
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <div className="flex items-center gap-1.5 bg-orange-50 px-2 py-0.5 rounded-xl border border-orange-100 shadow-sm">
-          <Flame size={12} className="text-orange-500 fill-orange-500" />
-          <span className="text-xs font-black text-orange-600">{stats.streak}d</span>
+        <div className="flex gap-2">
+          <div className="flex items-center gap-1.5 bg-orange-50 px-2 py-0.5 rounded-xl border border-orange-100 shadow-sm">
+            <Flame size={12} className="text-orange-500 fill-orange-500" />
+            <span className="text-xs font-black text-orange-600">{stats.streak}d</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-xl border border-amber-100 shadow-sm">
+            <Coins size={12} className="text-amber-500 fill-amber-500" />
+            <span className="text-xs font-black text-amber-600">{stats.gold || 0}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-xl border border-amber-100 shadow-sm">
-          <Coins size={12} className="text-amber-500 fill-amber-500" />
-          <span className="text-xs font-black text-amber-600">{stats.gold || 0}</span>
-        </div>
+        <button 
+          onClick={logout} 
+          className="mt-0.5 flex items-center gap-1 px-2 py-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all rounded-lg"
+        >
+          <LogOut size={12} strokeWidth={2.5} />
+          <span className="text-[9px] font-black uppercase tracking-wider">Log Out</span>
+        </button>
       </div>
     </header>
   );
