@@ -105,18 +105,30 @@ function SyllabusModule() {
         body: JSON.stringify({
           model: 'meta-llama/llama-4-scout-17b-16e-instruct',
           messages: [{ role: 'user', content: [
-            { type: 'text', text: 'Scan this syllabus for deadlines. Respond ONLY with a JSON array of strings: ["Task 1 - Date", "Task 2 - Date"]' },
+            { type: 'text', text: 'Scan this syllabus image and extract only the major assignment deadlines. Respond ONLY with a JSON array of objects: [{"title": "Assignment Name", "date": "YYYY-MM-DD"}]' },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}]
         })
       });
       const data = await response.json();
       const raw = data.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
-      const tasks = JSON.parse(raw);
-      setTasks(prev => [...tasks.map(t => ({ id: crypto.randomUUID(), text: t, type: 'todo', completed: false, createdAt: new Date().toISOString() })), ...prev]);
-      alert('Syllabus scanned! Deadlines added to Quest Board.');
+      const scannedTasks = JSON.parse(raw);
+      
+      const newTasks = scannedTasks.map(t => ({
+        id: crypto.randomUUID(),
+        text: `${t.title} (Due: ${t.date})`,
+        type: 'todo',
+        completed: false,
+        createdAt: new Date().toISOString()
+      }));
+
+      setTasks(prev => [...newTasks, ...prev]);
+      alert(`✅ Success! ${newTasks.length} deadlines have been added to your Home board.`);
       setImageBase64(null);
-    } catch (err) { alert('Scan failed.'); }
+    } catch (err) { 
+      console.error(err);
+      alert('Scan failed. Make sure the image is clear.'); 
+    }
     finally { setLoading(false); }
   };
 
