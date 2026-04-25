@@ -194,7 +194,7 @@ function AIAssignmentGraderModule() {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Paste your essay or assignment here..."
-        className="w-full h-24 bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
+        className="w-full h-24 bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none text-gray-900"
       />
       <button 
         onClick={grade} 
@@ -355,7 +355,7 @@ function GPAModule() {
             type="number" step="0.01" 
             value={currentGpa} 
             onChange={e => setCurrentGpa(parseFloat(e.target.value) || 0)}
-            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-900"
           />
         </div>
         <div className="space-y-1">
@@ -364,7 +364,7 @@ function GPAModule() {
             type="number" step="0.01" 
             value={targetGpa} 
             onChange={e => setTargetGpa(parseFloat(e.target.value) || 0)}
-            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-900"
           />
         </div>
         <div className="space-y-1">
@@ -373,7 +373,7 @@ function GPAModule() {
             type="number" 
             value={creditsTaken} 
             onChange={e => setCreditsTaken(parseInt(e.target.value) || 0)}
-            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-900"
           />
         </div>
         <div className="space-y-1">
@@ -382,7 +382,7 @@ function GPAModule() {
             type="number" 
             value={creditsLeft} 
             onChange={e => setCreditsLeft(parseInt(e.target.value) || 0)}
-            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold text-gray-900"
           />
         </div>
       </div>
