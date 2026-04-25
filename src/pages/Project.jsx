@@ -3,7 +3,7 @@ import { useGame } from '../context/GameContext';
 import { 
   Timer, Brain, BookOpen, CheckCircle2, Plus, Play, Pause, RotateCcw, 
   Loader2, Sparkles, ImagePlus, X, Flame, Music, GraduationCap, Grid,
-  Calculator, ChevronRight, Download
+  Calculator, ChevronRight, Download, ShieldCheck
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
