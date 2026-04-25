@@ -7,7 +7,7 @@ import { clsx } from 'clsx';
 
 // ─── Focus Timer (functional countdown) ──────────────────────────────
 function FocusTimerModule() {
-  const { gainXp, gainGold } = useGame();
+  const { gainXp, gainGold, setIsFocusing } = useGame();
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);
   const timerRef = React.useRef(null);
@@ -16,12 +16,14 @@ function FocusTimerModule() {
     if (running) {
       clearInterval(timerRef.current);
       setRunning(false);
+      setIsFocusing(false);
     } else {
       timerRef.current = setInterval(() => {
         setSeconds((s) => {
           if (s <= 1) {
             clearInterval(timerRef.current);
             setRunning(false);
+            setIsFocusing(false);
             gainXp(50);
             gainGold(10);
             alert("Pomodoro finished! You earned 50 XP and 10 Gold!");
@@ -31,6 +33,7 @@ function FocusTimerModule() {
         });
       }, 1000);
       setRunning(true);
+      setIsFocusing(true);
     }
   };
 

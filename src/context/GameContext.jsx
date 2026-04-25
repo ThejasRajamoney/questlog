@@ -14,12 +14,16 @@ export const GameProvider = ({ children }) => {
     health: 100,
     mana: 50,
     gold: 0,
+    verifiedXp: 0,
+    streak: 1,
   });
 
   const [tasks, setTasks] = useLocalStorage('questlog_tasks', []);
   const [habits, setHabits] = useLocalStorage('questlog_habits', []);
   const [notes, setNotes] = useLocalStorage('questlog_notes', []);
   const [lastLoginDate, setLastLoginDate] = useLocalStorage('questlog_last_login', new Date().toDateString());
+  const [dailyXpEarned, setDailyXpEarned] = useLocalStorage('questlog_daily_xp', 0);
+  const [isFocusing, setIsFocusing] = useState(false);
 
   // Listen for auth changes
   useEffect(() => {
@@ -45,7 +49,9 @@ export const GameProvider = ({ children }) => {
           xp: profile.xp,
           gold: profile.gold,
           health: profile.health,
-          mana: profile.mana
+          mana: profile.mana,
+          verifiedXp: profile.verified_xp || 0,
+          streak: profile.streak || 1
         });
       }
 
@@ -68,6 +74,8 @@ export const GameProvider = ({ children }) => {
       gold: stats.gold,
       health: stats.health,
       mana: stats.mana,
+      verified_xp: stats.verifiedXp,
+      streak: stats.streak,
       last_login_date: lastLoginDate
     }).then();
   }, [stats, lastLoginDate, session]);
@@ -113,10 +121,21 @@ export const GameProvider = ({ children }) => {
   useEffect(() => {
     const today = new Date().toDateString();
     if (lastLoginDate !== today) {
+      // Handle Streak
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const wasActiveYesterday = lastLoginDate === yesterday.toDateString();
+      
+      setStats(prev => ({
+        ...prev,
+        streak: wasActiveYesterday ? prev.streak + 1 : 1
+      }));
+
       setTasks(prev => prev.map(t => t.type === 'daily' ? { ...t, completed: false } : t));
       setLastLoginDate(today);
+      setDailyXpEarned(0); // Reset daily cap
     }
-  }, [lastLoginDate, setTasks, setLastLoginDate]);
+  }, [lastLoginDate, setTasks, setLastLoginDate, setStats, setDailyXpEarned]);
 
 
   const level = Math.floor(Math.sqrt(stats.xp / 100)) + 1;
@@ -124,9 +143,31 @@ export const GameProvider = ({ children }) => {
   const currentLevelXp = Math.pow(level - 1, 2) * 100;
   const xpProgress = ((stats.xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100;
 
-  const gainXp = useCallback((amount) => {
-    setStats((prev) => ({ ...prev, xp: prev.xp + amount }));
-  }, [setStats]);
+  const gainXp = useCallback((amount, options = {}) => {
+    const { isVerified = false } = options;
+    const XP_CAP = 500;
+    
+    let multiplier = 1;
+    if (isFocusing) multiplier = 5;
+    
+    let finalAmount = amount * multiplier;
+
+    if (!isVerified && dailyXpEarned >= XP_CAP) {
+      console.log("Daily XP Cap Reached! Use AI Grader or Focus Timer for more.");
+      return false;
+    }
+
+    setStats((prev) => ({ 
+      ...prev, 
+      xp: prev.xp + finalAmount,
+      verifiedXp: isVerified ? (prev.verifiedXp || 0) + finalAmount : prev.verifiedXp
+    }));
+    
+    if (!isVerified) {
+      setDailyXpEarned(prev => prev + finalAmount);
+    }
+    return true;
+  }, [isFocusing, dailyXpEarned, setStats, setDailyXpEarned]);
 
   const gainGold = useCallback((amount) => {
     setStats((prev) => ({ ...prev, gold: (prev.gold || 0) + amount }));
@@ -164,6 +205,8 @@ export const GameProvider = ({ children }) => {
     spendGold,
     loseHealth,
     useMana,
+    isFocusing,
+    setIsFocusing,
     tasks,
     setTasks,
     habits,

@@ -1,9 +1,9 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
-import { Heart, Zap, Sparkles, Coins } from 'lucide-react';
+import { Heart, Zap, Sparkles, Coins, Flame } from 'lucide-react';
 
 export function Topbar() {
-  const { stats, level, xpProgress, nextLevelXp } = useGame();
+  const { stats, level, xpProgress } = useGame();
 
   const healthPct = stats.health;
   const manaPct = stats.mana;
@@ -31,7 +31,7 @@ export function Topbar() {
         </div>
 
         {/* Bars */}
-        <div className="flex-1 space-y-1.5 max-w-[200px]">
+        <div className="flex-1 space-y-1.5 max-w-[160px]">
           {/* HP Bar */}
           <div className="flex items-center gap-2">
             <Heart size={12} className="text-rose-500 fill-rose-500 shrink-0" />
@@ -68,10 +68,14 @@ export function Topbar() {
       </div>
 
       {/* Gold & Stats */}
-      <div className="flex flex-col items-end gap-1">
-        <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-xl border border-amber-100 shadow-sm">
-          <Coins size={14} className="text-amber-500 fill-amber-500" />
-          <span className="text-sm font-black text-amber-600">{stats.gold || 0}</span>
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 bg-orange-50 px-2 py-0.5 rounded-xl border border-orange-100 shadow-sm">
+          <Flame size={12} className="text-orange-500 fill-orange-500" />
+          <span className="text-xs font-black text-orange-600">{stats.streak}d</span>
+        </div>
+        <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-xl border border-amber-100 shadow-sm">
+          <Coins size={12} className="text-amber-500 fill-amber-500" />
+          <span className="text-xs font-black text-amber-600">{stats.gold || 0}</span>
         </div>
       </div>
     </header>
