@@ -362,7 +362,7 @@ export function Home() {
       </SectionCard>
 
       {/* ── To-Dos ── */}
-      <SectionCard title={`To-Dos  ${completedTodos}/${todos.length}`} emoji="✅">
+      <SectionCard title={`To-Do's ${completedTodos}/${todos.length}`} emoji="✅">
         {todos.length === 0 && (
           <p className="text-gray-400 text-sm text-center py-2">Nothing on the list yet.</p>
         )}

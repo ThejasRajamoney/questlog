@@ -245,6 +245,7 @@ export const GameProvider = ({ children }) => {
       setTasks(prev => prev.map(t => t.type === 'daily' ? { ...t, completed: false } : t));
       setLastLoginDate(today);
       setDailyXpEarned(0);
+      setStats(prev => ({ ...prev, goldEarnedToday: 0 }));
     }
   }, [lastLoginDate]);
 
@@ -264,13 +265,13 @@ export const GameProvider = ({ children }) => {
     const finalAmount = amount * multiplier;
 
     if (!isVerified && dailyXpEarnedRef.current >= XP_CAP) {
-      console.log('Daily XP Cap reached. Use AI Grader or Focus Timer for more XP.');
+      alert("⚠️ Daily XP Cap reached! Completing habits/tasks won't grant more XP today. Use the AI Assignment Grader for Verified XP!");
       return false;
     }
 
     setStats(prev => ({ 
       ...prev, 
-      xp: prev.xp + finalAmount,
+      xp: (prev.xp || 0) + finalAmount,
       verifiedXp: isVerified ? (prev.verifiedXp || 0) + finalAmount : prev.verifiedXp
     }));
     
@@ -285,7 +286,16 @@ export const GameProvider = ({ children }) => {
   }, []);
 
   const gainGold = useCallback((amount) => {
-    setStats(prev => ({ ...prev, gold: (prev.gold || 0) + amount }));
+    const GOLD_CAP = 100;
+    setStats(prev => {
+      const earnedToday = prev.goldEarnedToday || 0;
+      if (earnedToday >= GOLD_CAP) return prev;
+      return { 
+        ...prev, 
+        gold: (prev.gold || 0) + amount,
+        goldEarnedToday: earnedToday + amount
+      };
+    });
   }, []);
 
   // FIX: spendGold now returns a boolean correctly using a ref
