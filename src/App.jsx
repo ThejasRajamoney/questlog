@@ -9,11 +9,18 @@ import { Notes } from './pages/Notes';
 import { Leaderboard } from './pages/Leaderboard';
 import { Shop } from './pages/Shop';
 
+import { Auth } from './pages/Auth';
+import { useGame } from './context/GameContext';
+
 function App() {
+  const { session } = useGame();
+
   return (
-    <GameProvider>
-      <BrowserRouter>
-        <Routes>
+    <BrowserRouter>
+      <Routes>
+        {!session ? (
+          <Route path="*" element={<Auth />} />
+        ) : (
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="calendar" element={<Calendar />} />
@@ -22,10 +29,18 @@ function App() {
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="shop" element={<Shop />} />
           </Route>
-        </Routes>
-      </BrowserRouter>
+        )}
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function Main() {
+  return (
+    <GameProvider>
+      <App />
     </GameProvider>
   );
 }
 
-export default App;
+export default Main;
