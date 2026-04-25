@@ -280,42 +280,55 @@ export function Home() {
   return (
     <div className="space-y-4 pb-4">
       {/* Page header on gradient */}
-      <div className="pb-2 text-center relative z-10 pt-2">
+      <div className="pb-4 text-center relative z-10 pt-2">
         <h1 className="text-white text-3xl font-black tracking-tight drop-shadow-md">Your Quest Board</h1>
       </div>
 
-      {/* Visual Avatar & Boss Area */}
-      <div className="flex items-end justify-center gap-6 mb-6 slide-up">
+      {/* Visual Avatar & Boss Area - Now in a card */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-row items-center justify-center gap-8 slide-up relative overflow-hidden">
+        {/* Decorative background element */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-50 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-50 rounded-full blur-2xl opacity-50 pointer-events-none"></div>
+
         {/* Visual Avatar */}
-        <div className="relative w-32 h-32 bg-white/20 backdrop-blur-md rounded-full border-4 border-white/40 flex items-center justify-center shadow-xl shrink-0">
-          <div className="text-6xl drop-shadow-md">🧍</div>
-          {equipped?.armor && <div className="absolute top-6 text-6xl drop-shadow-lg z-10 pointer-events-none">{equipped.armor.emoji}</div>}
-          {equipped?.head && <div className="absolute -top-6 text-6xl drop-shadow-lg z-20 pointer-events-none">{equipped.head.emoji}</div>}
-          {equipped?.weapon && <div className="absolute -right-4 top-8 text-5xl drop-shadow-lg z-10 rotate-12 pointer-events-none">{equipped.weapon.emoji}</div>}
+        <div className="flex flex-col items-center z-10">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Hero</p>
+          <div className="relative w-24 h-24 bg-gray-50 rounded-full border-4 border-white shadow-[0_8px_16px_rgba(0,0,0,0.05)] flex items-center justify-center shrink-0">
+            <div className="text-5xl drop-shadow-sm">🧍</div>
+            {equipped?.armor && <div className="absolute top-4 text-5xl drop-shadow-md z-10 pointer-events-none">{equipped.armor.emoji}</div>}
+            {equipped?.head && <div className="absolute -top-5 text-5xl drop-shadow-md z-20 pointer-events-none">{equipped.head.emoji}</div>}
+            {equipped?.weapon && <div className="absolute -right-3 top-6 text-4xl drop-shadow-md z-10 rotate-12 pointer-events-none">{equipped.weapon.emoji}</div>}
+          </div>
         </div>
 
+        {/* VS Divider */}
+        <div className="text-xs font-black text-gray-300 italic z-10">VS</div>
+
         {/* Boss Battle */}
-        {activeBoss ? (
-          <div className="relative w-32 h-32 flex flex-col items-center justify-end group">
-            <div className="text-6xl drop-shadow-xl animate-bounce mb-2">{activeBoss.emoji}</div>
-            
-            {/* Boss HP Bar */}
-            <div className="w-full bg-gray-900 rounded-full h-3 border-2 border-white shadow-lg overflow-hidden relative">
-              <div 
-                className="h-full bg-rose-500 transition-all duration-300" 
-                style={{ width: `${(activeBoss.hp / activeBoss.maxHp) * 100}%` }}
-              />
+        <div className="flex flex-col items-center z-10">
+          <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-3">Current Target</p>
+          {activeBoss ? (
+            <div className="relative w-24 h-24 flex flex-col items-center justify-end group">
+              <div className="text-5xl drop-shadow-lg animate-bounce mb-2">{activeBoss.emoji}</div>
+              
+              {/* Boss HP Bar */}
+              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden relative shadow-inner">
+                <div 
+                  className="h-full bg-rose-500 transition-all duration-300" 
+                  style={{ width: `${(activeBoss.hp / activeBoss.maxHp) * 100}%` }}
+                />
+              </div>
+              <div className="absolute -bottom-6 text-[9px] font-black text-gray-500 whitespace-nowrap">
+                {activeBoss.name} {activeBoss.hp}/{activeBoss.maxHp}
+              </div>
             </div>
-            <div className="absolute -bottom-5 text-[10px] font-black text-white bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
-              {activeBoss.name} {activeBoss.hp}/{activeBoss.maxHp}
-            </div>
-          </div>
-        ) : (
-          <button onClick={spawnBoss} className="relative w-32 h-32 rounded-3xl border-2 border-dashed border-white/30 flex flex-col items-center justify-center text-white/50 hover:bg-white/10 hover:border-white/50 transition-all">
-            <span className="text-2xl mb-1">⚔️</span>
-            <span className="text-xs font-bold">Summon Boss</span>
-          </button>
-        )}
+          ) : (
+            <button onClick={spawnBoss} className="relative w-24 h-24 rounded-full border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-500 transition-all">
+              <span className="text-xl mb-1">⚔️</span>
+              <span className="text-[9px] font-bold">Summon Boss</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Habits ── */}
