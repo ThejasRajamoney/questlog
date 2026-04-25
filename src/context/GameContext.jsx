@@ -26,6 +26,8 @@ export const GameProvider = ({ children }) => {
     { id: '2', title: 'Watch an Episode', cost: 30 },
     { id: '3', title: 'Buy a Coffee', cost: 100 },
   ]);
+  const [flashcards, setFlashcards] = useLocalStorage('questlog_flashcards', []);
+  const [gpaData, setGpaData] = useLocalStorage('questlog_gpa', { gpa: 4.0, target: 4.0, courses: [] });
   const [lastLoginDate, setLastLoginDate] = useLocalStorage('questlog_last_login', new Date().toDateString());
   const [dailyXpEarned, setDailyXpEarned] = useLocalStorage('questlog_daily_xp', 0);
   const [isFocusing, setIsFocusing] = useState(false);
@@ -68,6 +70,12 @@ export const GameProvider = ({ children }) => {
 
       const { data: dbRewards } = await supabase.from('rewards').select('*').eq('user_id', session.user.id);
       if (dbRewards && dbRewards.length > 0) setRewards(dbRewards);
+
+      const { data: dbFlash } = await supabase.from('flashcards').select('*').eq('user_id', session.user.id);
+      if (dbFlash) setFlashcards(dbFlash);
+
+      const { data: dbGpa } = await supabase.from('profiles').select('gpa_data').eq('id', session.user.id).single();
+      if (dbGpa?.gpa_data) setGpaData(dbGpa.gpa_data);
     };
 
     fetchData();
@@ -84,9 +92,10 @@ export const GameProvider = ({ children }) => {
       mana: stats.mana,
       verified_xp: stats.verifiedXp,
       streak: stats.streak,
-      last_login_date: lastLoginDate
+      last_login_date: lastLoginDate,
+      gpa_data: gpaData
     }).then();
-  }, [stats, lastLoginDate, session]);
+  }, [stats, lastLoginDate, gpaData, session]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -139,6 +148,22 @@ export const GameProvider = ({ children }) => {
     };
     syncRewards();
   }, [rewards, session]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const syncFlash = async () => {
+       await supabase.from('flashcards').delete().eq('user_id', session.user.id);
+       if (flashcards.length > 0) {
+         await supabase.from('flashcards').insert(flashcards.map(f => ({
+           user_id: session.user.id,
+           question: f.question,
+           answer: f.answer,
+           created_at: new Date().toISOString()
+         })));
+       }
+    };
+    syncFlash();
+  }, [flashcards, session]);
 
 
   // Daily reset check
@@ -239,6 +264,10 @@ export const GameProvider = ({ children }) => {
     setNotes,
     rewards,
     setRewards,
+    flashcards,
+    setFlashcards,
+    gpaData,
+    setGpaData,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

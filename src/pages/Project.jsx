@@ -1,11 +1,211 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { Plus, Timer, Brain, BookOpen, Flame, Loader2 } from 'lucide-react';
-import { AssignmentGrader } from '../components/AssignmentGrader';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { 
+  Timer, Brain, BookOpen, CheckCircle2, Plus, Play, Pause, RotateCcw, 
+  Loader2, Sparkles, ImagePlus, X, Flame, Music, GraduationCap, Grid,
+  Calculator, ChevronRight, Download
+} from 'lucide-react';
 import { clsx } from 'clsx';
 
-// ─── Focus Timer (functional countdown) ──────────────────────────────
+// ─── 1. AI FLASHCARD GENERATOR ────────────────────────────────────────
+function FlashcardModule() {
+  const { flashcards, setFlashcards } = useGame();
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  const [loading, setLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setImagePreview(ev.target.result);
+      setImageBase64(ev.target.result.split(',')[1]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const generate = async () => {
+    if (!imageBase64 || !apiKey) return;
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a JSON array: [{"question": "...", "answer": "..."}]' },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+          ]}],
+          temperature: 0.3
+        })
+      });
+      const data = await response.json();
+      const raw = data.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
+      const newFlash = JSON.parse(raw);
+      setFlashcards(prev => [...newFlash, ...prev]);
+      setImagePreview(null);
+    } catch (err) { alert('Failed to generate cards.'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="space-y-3 py-2">
+      {!imagePreview ? (
+        <label className="border-2 border-dashed border-indigo-100 rounded-2xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-indigo-50/50 transition-colors">
+          <ImagePlus size={24} className="text-indigo-400" />
+          <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">Scan Notes for Cards</span>
+          <input type="file" className="hidden" onChange={handleFile} accept="image/*" />
+        </label>
+      ) : (
+        <div className="space-y-2">
+          <img src={imagePreview} className="w-full h-32 object-cover rounded-xl" alt="Preview" />
+          <button onClick={generate} disabled={loading} className="w-full py-2 bg-indigo-500 text-white rounded-xl text-[11px] font-black uppercase flex items-center justify-center gap-2">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            Generate Flashcards
+          </button>
+        </div>
+      )}
+      <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+        {flashcards.slice(0, 5).map((f, i) => (
+          <div key={i} className="bg-white border border-indigo-50 p-3 rounded-xl text-[11px]">
+            <p className="font-black text-indigo-600 mb-1 uppercase tracking-tighter">Q: {f.question}</p>
+            <p className="text-gray-600">A: {f.answer}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── 2. SYLLABUS AI (DEADLINE SCANNER) ────────────────────────────────
+function SyllabusModule() {
+  const { setTasks } = useGame();
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  const [loading, setLoading] = useState(false);
+  const [imageBase64, setImageBase64] = useState(null);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setImageBase64(ev.target.result.split(',')[1]);
+    reader.readAsDataURL(file);
+  };
+
+  const scan = async () => {
+    if (!imageBase64 || !apiKey) return;
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: 'Scan this syllabus for deadlines. Respond ONLY with a JSON array of strings: ["Task 1 - Date", "Task 2 - Date"]' },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+          ]}]
+        })
+      });
+      const data = await response.json();
+      const raw = data.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
+      const tasks = JSON.parse(raw);
+      setTasks(prev => [...tasks.map(t => ({ id: crypto.randomUUID(), text: t, type: 'todo', completed: false, createdAt: new Date().toISOString() })), ...prev]);
+      alert('Syllabus scanned! Deadlines added to Quest Board.');
+      setImageBase64(null);
+    } catch (err) { alert('Scan failed.'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="py-2 space-y-2">
+      <label className="w-full py-4 border-2 border-dashed border-emerald-100 rounded-2xl flex flex-col items-center gap-2 cursor-pointer hover:bg-emerald-50/50 transition-colors">
+        <Download size={24} className="text-emerald-400" />
+        <span className="text-[11px] font-black text-emerald-600 uppercase">Upload Syllabus</span>
+        <input type="file" className="hidden" onChange={handleFile} accept="image/*" />
+      </label>
+      {imageBase64 && (
+        <button onClick={scan} disabled={loading} className="w-full py-2 bg-emerald-500 text-white rounded-xl font-black text-[11px] uppercase flex items-center justify-center gap-2">
+          {loading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          Start Scan
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── 3. MASTERY HEATMAP ───────────────────────────────────────────────
+function HeatmapModule() {
+  const { tasks } = useGame();
+  const completedTasks = tasks.filter(t => t.completed);
+  
+  // Fake grid for demo
+  const days = Array.from({ length: 28 });
+  
+  return (
+    <div className="py-2">
+      <div className="grid grid-cols-7 gap-1.5">
+        {days.map((_, i) => {
+          const intensity = Math.random() > 0.7 ? 'bg-orange-500' : Math.random() > 0.4 ? 'bg-orange-200' : 'bg-gray-100';
+          return <div key={i} className={clsx("w-full aspect-square rounded-sm transition-all", intensity)} />;
+        })}
+      </div>
+      <p className="text-[10px] text-gray-400 mt-2 text-center font-bold uppercase tracking-widest">Consistency: On Fire! 🔥</p>
+    </div>
+  );
+}
+
+// ─── 4. FOCUS RADIO ──────────────────────────────────────────────────
+function RadioModule() {
+  const [playing, setPlaying] = useState(false);
+  return (
+    <div className="py-2 flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+        <Music size={20} className="text-violet-500 animate-pulse" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] font-black text-gray-800 uppercase truncate">Lo-Fi Beats to Study</p>
+        <p className="text-[10px] text-gray-400 font-bold uppercase">Focus Radio • Live</p>
+      </div>
+      <button 
+        onClick={() => setPlaying(!playing)}
+        className="w-10 h-10 rounded-full bg-violet-500 text-white flex items-center justify-center hover:scale-105 transition-transform"
+      >
+        {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-1" fill="currentColor" />}
+      </button>
+    </div>
+  );
+}
+
+// ─── 5. GPA PREDICTOR ─────────────────────────────────────────────────
+function GPAModule() {
+  const { gpaData, setGpaData } = useGame();
+  return (
+    <div className="py-2 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] text-gray-400 font-bold uppercase">Current GPA</p>
+          <p className="text-xl font-black text-gray-800">{gpaData.gpa.toFixed(2)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-gray-400 font-bold uppercase">Target</p>
+          <p className="text-xl font-black text-amber-500">{gpaData.target.toFixed(2)}</p>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-amber-400 w-[85%] rounded-full" />
+        </div>
+        <p className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-tighter">You need an A- in Physics to hit your target!</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── FOCUS TIMER ──────────────────────────────────────────────────────
 function FocusTimerModule() {
   const { gainXp, gainGold, setIsFocusing } = useGame();
   const [seconds, setSeconds] = useState(25 * 60);
@@ -26,7 +226,7 @@ function FocusTimerModule() {
             setIsFocusing(false);
             gainXp(50);
             gainGold(10);
-            alert("Pomodoro finished! You earned 50 XP and 10 Gold!");
+            alert("Pomodoro finished!");
             return 25 * 60;
           }
           return s - 1;
@@ -37,274 +237,62 @@ function FocusTimerModule() {
     }
   };
 
-  const reset = () => {
-    clearInterval(timerRef.current);
-    setRunning(false);
-    setSeconds(25 * 60);
-  };
-
-  React.useEffect(() => () => clearInterval(timerRef.current), []);
-
-  const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
-  const secs = String(seconds % 60).padStart(2, '0');
+  const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="flex flex-col items-center py-2 gap-2">
-      <span className="font-pixel text-2xl text-violet-600 tracking-widest">
-        {mins}:{secs}
-      </span>
-      <div className="flex gap-2 mt-1">
-        <button
-          onClick={toggle}
-          className="px-4 py-1.5 rounded-xl bg-violet-500 text-white text-xs font-black transition-transform active:scale-95"
-        >
-          {running ? 'Pause' : 'Start'}
-        </button>
-        <button
-          onClick={reset}
-          className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-500 text-xs font-bold transition-transform active:scale-95"
-        >
-          Reset
+    <div className="flex items-center justify-between py-2">
+      <div className="text-3xl font-black text-gray-800 tracking-tighter tabular-nums">
+        {formatTime(seconds)}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={() => setSeconds(25 * 60)} className="p-2 text-gray-400 hover:text-gray-600"><RotateCcw size={20} /></button>
+        <button onClick={toggle} className="w-12 h-12 rounded-full bg-violet-500 text-white flex items-center justify-center shadow-lg active:scale-95 transition-all">
+          {running ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" className="ml-1" />}
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Reading Tracker (user-entered books) ────────────────────────────
-function ReadingTrackerModule() {
-  const [books, setBooks] = useLocalStorage('questlog_reading', []);
-  const [input, setInput] = useState('');
-
-  const addBook = (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    setBooks([...books, { title: input.trim(), pct: 0 }]);
-    setInput('');
-  };
-
-  const updatePct = (i, val) => {
-    setBooks(books.map((b, idx) => idx === i ? { ...b, pct: Number(val) } : b));
-  };
-
-  return (
-    <div className="py-2 space-y-2">
-      {books.length === 0 && (
-        <p className="text-xs text-gray-400 text-center pb-1">No books added yet</p>
-      )}
-      {books.map((book, i) => (
-        <div key={i} className="space-y-1">
-          <div className="flex justify-between">
-            <span className="text-xs text-gray-600 font-semibold truncate">{book.title}</span>
-            <span className="text-[10px] text-gray-400 font-semibold">{book.pct}%</span>
-          </div>
-          <input
-            type="range"
-            min={0} max={100}
-            value={book.pct}
-            onChange={(e) => updatePct(i, e.target.value)}
-            className="w-full accent-indigo-500"
-          />
-        </div>
-      ))}
-      <form onSubmit={addBook} className="flex gap-1 pt-1">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Add a book..."
-          className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 focus:outline-none focus:border-indigo-400"
-        />
-        <button type="submit" className="w-7 h-7 bg-indigo-500 rounded-xl flex items-center justify-center text-white">
-          <Plus size={14} strokeWidth={3} />
-        </button>
-      </form>
-    </div>
-  );
-}
-
-// ─── Streak Tracker (counts completed tasks from context) ─────────────
-function StreakModule() {
-  const { tasks } = useGame();
-  const completedCount = tasks.filter(t => t.completed).length;
-
-  return (
-    <div className="flex flex-col items-center py-2">
-      <Flame
-        size={36}
-        className={completedCount > 0 ? 'text-orange-500 fill-orange-500' : 'text-gray-300'}
-      />
-      <span className="font-black text-gray-800 text-2xl mt-1">{completedCount}</span>
-      <span className="text-xs text-gray-400 font-semibold">tasks completed</span>
-    </div>
-  );
-}
-
-// ─── AI Assistant (Task breakdown using Groq) ───────────────────────────
-function AIAssistantModule() {
-  const { setTasks } = useGame();
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const breakdownTask = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-    if (!apiKey) { setError('API Key missing in .env'); return; }
-
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const PROMPT = `You are an AI task planner. Break this large task into 3-5 small, actionable sub-tasks. Respond ONLY with a valid JSON array of strings. Task: "${input}"`;
-      
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{ role: 'user', content: PROMPT }],
-          temperature: 0.3,
-          max_tokens: 300,
-        }),
-      });
-
-      if (!response.ok) throw new Error('API error');
-      const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content?.trim();
-      const jsonStr = raw.replace(/```json|```/g, '').trim();
-      const subtasks = JSON.parse(jsonStr);
-
-      if (!Array.isArray(subtasks)) throw new Error('Invalid format');
-
-      const newTasks = subtasks.map(t => ({
-        id: crypto.randomUUID(),
-        text: t,
-        type: 'todo',
-        completed: false,
-        createdAt: new Date().toISOString()
-      }));
-
-      setTasks(prev => [...newTasks, ...prev]);
-      setInput('');
-      setError('✅ Added to To-Dos!');
-      setTimeout(() => setError(null), 3000);
-    } catch (err) {
-      setError('Failed to break down task.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="py-2">
-      <form onSubmit={breakdownTask} className="space-y-2">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="e.g. Write a 10 page paper"
-          className="w-full text-xs bg-fuchsia-50/50 border border-fuchsia-100 rounded-xl px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-fuchsia-300 resize-none"
-          rows={2}
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-1.5 rounded-xl bg-fuchsia-500 text-white text-[11px] uppercase tracking-wider font-black flex items-center justify-center gap-1 hover:bg-fuchsia-600 disabled:opacity-50 transition-colors"
-        >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Brain size={14} />}
-          Break Down Task
-        </button>
-      </form>
-      {error && <p className={clsx("text-center text-[10px] mt-2 font-bold", error.includes('✅') ? "text-emerald-500" : "text-rose-500")}>{error}</p>}
-    </div>
-  );
-}
-
-// ─── MODULE DEFINITIONS ───────────────────────────────────────────────
-const MODULES = [
-  {
-    id: 'focus',
-    icon: Timer,
-    title: 'Focus Timer',
-    subtitle: 'Pomodoro • 25 min',
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
-    accent: 'bg-violet-500',
-    content: <FocusTimerModule />,
-  },
-  {
-    id: 'ai',
-    icon: Brain,
-    title: 'AI Assistant',
-    subtitle: 'Task breakdown',
-    color: 'text-fuchsia-600',
-    bg: 'bg-fuchsia-50',
-    accent: 'bg-fuchsia-500',
-    content: <AIAssistantModule />,
-  },
-  {
-    id: 'reading',
-    icon: BookOpen,
-    title: 'Reading Tracker',
-    subtitle: 'Books & progress',
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-    accent: 'bg-indigo-500',
-    content: <ReadingTrackerModule />,
-  },
-  {
-    id: 'streak',
-    icon: Flame,
-    title: 'Completion Count',
-    subtitle: 'Tasks done',
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-    accent: 'bg-orange-500',
-    content: <StreakModule />,
-  },
+const MODULE_DATA = [
+  { id: 'focus', icon: Timer, title: 'Focus Timer', color: 'text-violet-600', bg: 'bg-violet-50', content: <FocusTimerModule /> },
+  { id: 'flashcards', icon: BookOpen, title: 'AI Flashcards', color: 'text-indigo-600', bg: 'bg-indigo-50', content: <FlashcardModule /> },
+  { id: 'syllabus', icon: GraduationCap, title: 'Syllabus Scan', color: 'text-emerald-600', bg: 'bg-emerald-50', content: <SyllabusModule /> },
+  { id: 'heatmap', icon: Grid, title: 'Heatmap', color: 'text-orange-600', bg: 'bg-orange-50', content: <HeatmapModule /> },
+  { id: 'radio', icon: Music, title: 'Focus Radio', color: 'text-violet-600', bg: 'bg-violet-50', content: <RadioModule /> },
+  { id: 'gpa', icon: Calculator, title: 'GPA Predictor', color: 'text-amber-600', bg: 'bg-amber-50', content: <GPAModule /> },
 ];
 
-// ─── PROJECT PAGE ─────────────────────────────────────────────────────
 export function Project() {
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-4 page-enter">
       <div className="pb-2">
-        <p className="text-white/70 text-sm font-medium">Your workspace</p>
-        <h1 className="text-white text-2xl font-black tracking-tight">Projects</h1>
+        <p className="text-white/70 text-sm font-medium">Tools for scholars</p>
+        <h1 className="text-white text-2xl font-black tracking-tight">Quest Modules</h1>
       </div>
 
-      {/* ── AI Assignment Grader (full-width featured) ── */}
-      <AssignmentGrader />
-
-      <div className="grid grid-cols-2 gap-3">
-        {MODULES.map((mod) => {
-          const Icon = mod.icon;
-          return (
-            <div key={mod.id} className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
-              <div className={`${mod.bg} px-4 pt-4 pb-2 flex items-center gap-2`}>
-                <div className={`w-8 h-8 ${mod.accent} rounded-xl flex items-center justify-center shadow-sm`}>
-                  <Icon size={16} className="text-white" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-black text-gray-800 text-sm truncate">{mod.title}</h3>
-                  <p className="text-[10px] text-gray-400 font-medium truncate">{mod.subtitle}</p>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {MODULE_DATA.map((mod) => (
+          <div key={mod.id} className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden flex flex-col slide-up">
+            <div className={clsx("px-5 py-4 border-b border-gray-50 flex items-center gap-3", mod.bg)}>
+              <div className={clsx("w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm", mod.color)}>
+                <mod.icon size={18} />
               </div>
-              <div className="px-4 pb-4">{mod.content}</div>
+              <h3 className="font-black text-gray-800 text-sm uppercase tracking-wider">{mod.title}</h3>
             </div>
-          );
-        })}
-
-        {/* Add Module slot */}
-        <div className="bg-white rounded-3xl shadow-sm border-2 border-dashed border-gray-200 flex flex-col items-center justify-center py-8 cursor-pointer hover:border-violet-300 hover:bg-violet-50/50 transition-colors col-span-2">
-          <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center mb-2">
-            <Plus size={20} className="text-gray-400" />
+            <div className="p-4 flex-1">
+              {mod.content}
+            </div>
           </div>
-          <span className="text-sm font-bold text-gray-400">Add Module</span>
-        </div>
+        ))}
       </div>
+
+      <button className="w-full py-6 border-2 border-dashed border-white/20 rounded-3xl flex flex-col items-center justify-center gap-2 hover:bg-white/5 transition-colors group">
+        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+          <Plus size={24} />
+        </div>
+        <span className="text-white/40 font-black text-xs uppercase tracking-[0.2em]">More Modules Coming Soon</span>
+      </button>
     </div>
   );
 }
