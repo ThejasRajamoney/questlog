@@ -13,7 +13,7 @@ const MARKET_ITEMS = [
 ];
 
 export function Shop() {
-  const { stats, spendGold, rewards, setRewards, inventory, setInventory } = useGame();
+  const { stats, spendGold, rewards, setRewards, inventory, setInventory, equipped, setEquipped } = useGame();
   const [activeTab, setActiveTab] = useState('market'); // 'market' or 'custom'
   const [newTitle, setNewTitle] = useState('');
   const [newCost, setNewCost] = useState('');
@@ -34,6 +34,23 @@ export function Shop() {
     } else {
       alert(`Not enough gold! You need ${reward.cost - (stats.gold || 0)} more.`);
     }
+  };
+
+  const toggleEquip = (item) => {
+    setEquipped(prev => {
+      // Very simple equip logic: if it's equipped, unequip it. Otherwise equip it.
+      // We can map item id to body part. Let's just store the whole item or null.
+      const isCurrentlyEquipped = prev.weapon?.id === item.id || prev.armor?.id === item.id || prev.head?.id === item.id;
+      
+      let slot = 'weapon';
+      if (item.title.includes('Armor')) slot = 'armor';
+      if (item.title.includes('Hat')) slot = 'head';
+
+      return {
+        ...prev,
+        [slot]: isCurrentlyEquipped ? null : item
+      };
+    });
   };
 
   const buyMarketItem = (item) => {
@@ -99,6 +116,7 @@ export function Shop() {
             {MARKET_ITEMS.map(item => {
               const canAfford = (stats.gold || 0) >= item.cost;
               const isOwned = item.type === 'equipment' && inventory.some(i => i.id === item.id);
+              const isEquipped = equipped?.weapon?.id === item.id || equipped?.armor?.id === item.id || equipped?.head?.id === item.id;
               
               return (
                 <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-2 text-center relative overflow-hidden group">
@@ -110,16 +128,16 @@ export function Shop() {
                     <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-2">{item.type}</p>
                   </div>
                   <button 
-                    onClick={() => buyMarketItem(item)}
-                    disabled={isOwned}
+                    onClick={() => isOwned ? toggleEquip(item) : buyMarketItem(item)}
                     className={clsx(
                       'w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95',
-                      isOwned ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
-                      canAfford ? 'bg-indigo-500 text-white shadow-md hover:bg-indigo-600' : 'bg-gray-100 text-gray-400'
+                      isOwned 
+                        ? (isEquipped ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+                        : (canAfford ? 'bg-indigo-500 text-white shadow-md hover:bg-indigo-600' : 'bg-gray-100 text-gray-400')
                     )}
                   >
                     {isOwned ? (
-                      'OWNED'
+                      isEquipped ? 'UNEQUIP' : 'EQUIP'
                     ) : (
                       <>
                         <Coins size={12} className={canAfford ? 'fill-white' : 'fill-gray-400'} />

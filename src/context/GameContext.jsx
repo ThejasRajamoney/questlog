@@ -22,6 +22,7 @@ export const GameProvider = ({ children }) => {
   const [habits, setHabits] = useLocalStorage('questlog_habits', []);
   const [notes, setNotes] = useLocalStorage('questlog_notes', []);
   const [inventory, setInventory] = useLocalStorage('questlog_inventory', []);
+  const [equipped, setEquipped] = useLocalStorage('questlog_equipped', { weapon: null, armor: null, head: null });
   const [rewards, setRewards] = useLocalStorage('questlog_rewards', [
     { id: '1', title: '1 hr of Video Games', cost: 50 },
     { id: '2', title: 'Watch an Episode', cost: 30 },
@@ -43,6 +44,31 @@ export const GameProvider = ({ children }) => {
 
   const dailyXpEarnedRef = useRef(dailyXpEarned);
   useEffect(() => { dailyXpEarnedRef.current = dailyXpEarned; }, [dailyXpEarned]);
+
+  // ── Midnight Reset Cron ─────────────────────────────────────────────
+  useEffect(() => {
+    const today = new Date().toDateString();
+    if (lastLoginDate !== today) {
+      // It's a new day! Calculate punishments for yesterday's missed tasks.
+      const missedTasks = tasks.filter(t => !t.completed && t.type === 'todo');
+      
+      if (missedTasks.length > 0) {
+        const damage = missedTasks.length * 5;
+        setStats(prev => ({
+          ...prev,
+          health: Math.max(0, prev.health - damage),
+          streak: 0 // Reset streak
+        }));
+        setTimeout(() => alert(`You left ${missedTasks.length} tasks unfinished yesterday! You took ${damage} damage and lost your streak!`), 1000);
+      } else if (tasks.filter(t => t.type === 'todo').length > 0) {
+        // Increase streak if they finished all tasks
+        setStats(prev => ({ ...prev, streak: prev.streak + 1 }));
+      }
+
+      setDailyXpEarned(0);
+      setLastLoginDate(today);
+    }
+  }, [lastLoginDate, tasks, setStats, setDailyXpEarned, setLastLoginDate]);
 
   // ── Auth listener ───────────────────────────────────────────────────
   useEffect(() => {
@@ -302,6 +328,8 @@ export const GameProvider = ({ children }) => {
     setRewards,
     inventory,
     setInventory,
+    equipped,
+    setEquipped,
     flashcards,
     setFlashcards,
     gpaData,

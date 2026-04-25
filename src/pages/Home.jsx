@@ -190,7 +190,7 @@ function SectionCard({ title, emoji, children }) {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────
 export function Home() {
-  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, loseHealth } = useGame();
+  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, loseHealth, equipped } = useGame();
 
   // Task actions
   const addTask = (type) => (text) => {
@@ -249,9 +249,33 @@ export function Home() {
   return (
     <div className="space-y-4 pb-4">
       {/* Page header on gradient */}
-      <div className="pb-2">
-        <p className="text-white/70 text-sm font-medium">Welcome back!</p>
-        <h1 className="text-white text-2xl font-black tracking-tight">Your Quest Board</h1>
+      <div className="pb-2 text-center relative z-10 pt-2">
+        <h1 className="text-white text-3xl font-black tracking-tight drop-shadow-md">Your Quest Board</h1>
+      </div>
+
+      {/* Visual Avatar */}
+      <div className="flex justify-center mb-6 slide-up">
+        <div className="relative w-32 h-32 bg-white/20 backdrop-blur-md rounded-full border-4 border-white/40 flex items-center justify-center shadow-xl">
+          {/* Base Character */}
+          <div className="text-6xl drop-shadow-md">🧍</div>
+          
+          {/* Equipment Overlays */}
+          {equipped?.armor && (
+            <div className="absolute top-6 text-6xl drop-shadow-lg z-10 pointer-events-none" title={equipped.armor.title}>
+              {equipped.armor.emoji}
+            </div>
+          )}
+          {equipped?.head && (
+            <div className="absolute -top-6 text-6xl drop-shadow-lg z-20 pointer-events-none" title={equipped.head.title}>
+              {equipped.head.emoji}
+            </div>
+          )}
+          {equipped?.weapon && (
+            <div className="absolute -right-4 top-8 text-5xl drop-shadow-lg z-10 rotate-12 pointer-events-none" title={equipped.weapon.title}>
+              {equipped.weapon.emoji}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Habits ── */}
