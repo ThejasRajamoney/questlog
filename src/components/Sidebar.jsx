@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Calendar, LayoutDashboard, FileText, Trophy } from 'lucide-react';
+import { Home, Calendar, LayoutDashboard, FileText, Trophy, Store } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { path: '/project', label: 'Project', icon: LayoutDashboard, color: 'text-violet-500' },
   { path: '/notes', label: 'Notes', icon: FileText, color: 'text-amber-500' },
   { path: '/leaderboard', label: 'Ranks', icon: Trophy, color: 'text-orange-500' },
+  { path: '/shop', label: 'Shop', icon: Store, color: 'text-amber-600' },
 ];
 
 export function BottomNav() {

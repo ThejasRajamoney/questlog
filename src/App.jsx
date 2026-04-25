@@ -7,6 +7,7 @@ import { Calendar } from './pages/Calendar';
 import { Project } from './pages/Project';
 import { Notes } from './pages/Notes';
 import { Leaderboard } from './pages/Leaderboard';
+import { Shop } from './pages/Shop';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="project" element={<Project />} />
             <Route path="notes" element={<Notes />} />
             <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="shop" element={<Shop />} />
           </Route>
         </Routes>
       </BrowserRouter>

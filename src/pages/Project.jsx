@@ -7,6 +7,7 @@ import { clsx } from 'clsx';
 
 // ─── Focus Timer (functional countdown) ──────────────────────────────
 function FocusTimerModule() {
+  const { gainXp, gainGold } = useGame();
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);
   const timerRef = React.useRef(null);
@@ -21,6 +22,9 @@ function FocusTimerModule() {
           if (s <= 1) {
             clearInterval(timerRef.current);
             setRunning(false);
+            gainXp(50);
+            gainGold(10);
+            alert("Pomodoro finished! You earned 50 XP and 10 Gold!");
             return 25 * 60;
           }
           return s - 1;

@@ -10,6 +10,7 @@ const PAGE_GRADIENTS = {
   '/project': 'from-violet-500 via-purple-400 to-fuchsia-400',
   '/notes': 'from-amber-400 via-orange-400 to-yellow-300',
   '/leaderboard': 'from-orange-500 via-amber-400 to-yellow-400',
+  '/shop': 'from-yellow-400 via-amber-500 to-orange-500',
 };
 
 export function Layout() {

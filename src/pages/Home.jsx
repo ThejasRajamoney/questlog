@@ -4,13 +4,16 @@ import { Plus, Trash2, CheckCircle2, RotateCcw } from 'lucide-react';
 import { clsx } from 'clsx';
 
 // ─── XP Float Animation ──────────────────────────────────────────────
-function XpBubble({ id, onDone }) {
+function XpBubble({ id, onDone, type = 'xp' }) {
   return (
     <div
-      className="xp-float pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white text-xs font-black px-2 py-0.5 rounded-full shadow-lg"
+      className={clsx(
+        "xp-float pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-50 text-white text-xs font-black px-2 py-0.5 rounded-full shadow-lg",
+        type === 'gold' ? 'bg-amber-400' : 'bg-emerald-500'
+      )}
       onAnimationEnd={onDone}
     >
-      +15 XP
+      {type === 'gold' ? '+2 Gold' : '+15 XP'}
     </div>
   );
 }
@@ -56,8 +59,13 @@ function HabitItem({ habit, onPlus, onMinus, onDelete }) {
         <Trash2 size={16} />
       </button>
 
-      {/* XP pop */}
-      {xpPop && <XpBubble id={habit.id} onDone={() => setXpPop(false)} />}
+      {/* XP/Gold pop */}
+      {xpPop && (
+        <>
+          <XpBubble id={habit.id} onDone={() => setXpPop(false)} />
+          <div className="absolute top-2 left-1/3 -translate-x-1/2"><XpBubble id={habit.id} type="gold" onDone={() => {}} /></div>
+        </>
+      )}
     </div>
   );
 }
@@ -109,7 +117,12 @@ function TaskItem({ task, onComplete, onDelete }) {
         <Trash2 size={16} />
       </button>
 
-      {xpPop && <XpBubble id={task.id} onDone={() => setXpPop(false)} />}
+      {xpPop && (
+        <>
+          <XpBubble id={task.id} onDone={() => setXpPop(false)} />
+          <div className="absolute top-2 left-1/3 -translate-x-1/2"><XpBubble id={task.id} type="gold" onDone={() => {}} /></div>
+        </>
+      )}
     </div>
   );
 }
@@ -166,7 +179,7 @@ function SectionCard({ title, emoji, children }) {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────
 export function Home() {
-  const { tasks, setTasks, habits, setHabits, gainXp, stats, level, xpProgress } = useGame();
+  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, stats, level, xpProgress } = useGame();
 
   // Task actions
   const addTask = (type) => (text) => {
@@ -182,7 +195,10 @@ export function Home() {
   const completeTask = (id) => {
     setTasks((prev) => prev.map((t) => {
       if (t.id === id) {
-        if (!t.completed) gainXp(15);
+        if (!t.completed) {
+          gainXp(15);
+          gainGold(2);
+        }
         return { ...t, completed: !t.completed };
       }
       return t;
@@ -205,6 +221,7 @@ export function Home() {
   const scoreHabit = (id) => {
     setHabits((prev) => prev.map((h) => h.id === id ? { ...h, score: h.score + 1 } : h));
     gainXp(10);
+    gainGold(1);
   };
 
   const deleteHabit = (id) => setHabits((prev) => prev.filter((h) => h.id !== id));
