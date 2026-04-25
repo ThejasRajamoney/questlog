@@ -8,7 +8,7 @@ import {
 import { clsx } from 'clsx';
 
 // ─── UTILS: IMAGE RESIZER ─────────────────────────────────────────────
-const resizeImage = (file, maxWidth = 1024) => {
+const resizeImage = (file, maxWidth = 2048) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -29,7 +29,8 @@ const resizeImage = (file, maxWidth = 1024) => {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
+        // Higher quality (0.9) so AI can read text clearly
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
       };
     };
   });
@@ -160,69 +161,79 @@ function SyllabusModule() {
           messages: [{ role: 'user', content: [
             { 
               type: 'text', 
-              text: `Look at this syllabus image carefully. Find ALL assignments, exams, quizzes, projects, and deadlines. 
-List every single one you find. Respond ONLY with a JSON array using ANY date format you see (don't convert it):
-[{"title": "Assignment or task name", "date": "date as written in the syllabus"}]
-If you cannot find any deadlines, still return an empty array: []` 
+              text: `This is a course syllabus. List every assignment, exam, quiz, project, or deadline you can find in it.
+Write one item per line in this exact format:
+TASK: [name of task] | DATE: [date as shown]
+
+Example:
+TASK: Midterm Exam | DATE: March 15
+TASK: Lab Report 2 | DATE: Week 8
+
+If you see no deadlines at all, write: NONE FOUND`
             },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}],
-          temperature: 0.1,
+          temperature: 0,
           max_tokens: 2000
         })
       });
-      
+
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(`Groq API Error ${response.status}: ${data?.error?.message || 'Unknown'}`);
       }
 
-      const content = data.choices?.[0]?.message?.content || '';
-      console.log('Syllabus raw response:', content);
-      
-      // Try to find a JSON array in the response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      
-      let scannedTasks = [];
-      if (jsonMatch) {
-        try {
-          scannedTasks = JSON.parse(jsonMatch[0]);
-        } catch (e) {
-          console.warn('JSON parse failed, trying fallback');
-        }
-      }
+      const content = data.choices?.[0]?.message?.content?.trim() || '';
+      console.log('Syllabus AI response:', content);
 
-      if (!Array.isArray(scannedTasks) || scannedTasks.length === 0) {
-        // Fallback: if the model described things in text, extract lines as tasks
-        const lines = content.split('\n').filter(l => l.trim().length > 5 && !l.startsWith('[') && !l.startsWith(']'));
-        if (lines.length > 0) {
-          scannedTasks = lines.map(l => ({ title: l.replace(/^[-*•\d.]+\s*/, '').trim(), date: 'See syllabus' }));
-        }
-      }
-
-      if (scannedTasks.length === 0) {
-        alert('No deadlines found. Try a clearer image or a different page of the syllabus.');
+      if (!content || content.toUpperCase().includes('NONE FOUND')) {
+        alert('No deadlines detected. Make sure the image shows the schedule/deadline section of your syllabus.');
         return;
       }
 
-      const newTasks = scannedTasks.filter(t => t.title).map(t => ({
-        id: crypto.randomUUID(),
-        text: t.date && t.date !== 'See syllabus' ? `${t.title} (Due: ${t.date})` : t.title,
-        type: 'todo',
-        completed: false,
-        createdAt: new Date().toISOString()
-      }));
+      // Parse "TASK: X | DATE: Y" lines
+      const lines = content.split('\n');
+      const newTasks = [];
+
+      for (const line of lines) {
+        const taskMatch = line.match(/TASK:\s*(.+?)\s*\|\s*DATE:\s*(.+)/i);
+        if (taskMatch) {
+          newTasks.push({
+            id: crypto.randomUUID(),
+            text: `${taskMatch[1].trim()} (Due: ${taskMatch[2].trim()})`,
+            type: 'todo',
+            completed: false,
+            createdAt: new Date().toISOString()
+          });
+        } else if (line.trim().length > 5 && !line.startsWith('TASK') && !line.startsWith('Example')) {
+          // Fallback: grab any non-empty line as a task
+          newTasks.push({
+            id: crypto.randomUUID(),
+            text: line.trim().replace(/^[-*•\d.]+\s*/, ''),
+            type: 'todo',
+            completed: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+
+      if (newTasks.length === 0) {
+        alert('No deadlines found. Try uploading the page that shows the course schedule or due dates.');
+        return;
+      }
 
       setTasks(prev => [...newTasks, ...prev]);
       alert(`✅ ${newTasks.length} deadlines added to Home!`);
       setImageBase64(null);
-    } catch (err) { 
+    } catch (err) {
       console.error('Scan Error:', err);
-      alert(`Scan Error: ${err.message}`); 
+      alert(`Scan Error: ${err.message}`);
+    } finally { 
+      setLoading(false); 
     }
-    finally { setLoading(false); }
   };
+
 
   return (
     <div className="py-2 space-y-2">
