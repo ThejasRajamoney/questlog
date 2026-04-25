@@ -85,7 +85,8 @@ export const GameProvider = ({ children }) => {
     hasFetched.current = true;
 
     const fetchData = async () => {
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      
       if (profile) {
         setStats({
           xp: profile.xp || 0,
@@ -96,6 +97,9 @@ export const GameProvider = ({ children }) => {
           streak: profile.streak || 1
         });
         if (profile.gpa_data) setGpaData(profile.gpa_data);
+      } else {
+        // Fallback or initial creation if needed
+        console.log('No profile found, will be created on first sync');
       }
 
       const { data: dbTasks } = await supabase.from('tasks').select('*').eq('user_id', session.user.id);
@@ -126,16 +130,21 @@ export const GameProvider = ({ children }) => {
   // Sync profile stats (debounced to prevent rapid re-saves)
   const syncStats = useCallback(debounce(async (currentStats, currentSession, currentGpaData) => {
     if (!currentSession?.user) return;
-    await supabase.from('profiles').upsert({
-      id: currentSession.user.id,
-      xp: currentStats.xp,
-      gold: currentStats.gold,
-      health: currentStats.health,
-      mana: currentStats.mana,
-      verified_xp: currentStats.verifiedXp,
-      streak: currentStats.streak,
-      gpa_data: currentGpaData
-    });
+    try {
+      const { error } = await supabase.from('profiles').upsert({
+        id: currentSession.user.id,
+        xp: currentStats.xp,
+        gold: currentStats.gold,
+        health: currentStats.health,
+        mana: currentStats.mana,
+        verified_xp: currentStats.verifiedXp || 0,
+        streak: currentStats.streak || 1,
+        gpa_data: currentGpaData || {}
+      });
+      if (error) console.warn('Supabase Sync Warning:', error.message);
+    } catch (e) {
+      console.error('Supabase Sync Error:', e);
+    }
   }, 2000), []);
 
   useEffect(() => {

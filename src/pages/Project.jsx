@@ -64,7 +64,7 @@ function FlashcardModule() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'llama-3.2-11b-vision-preview',
           messages: [{ role: 'user', content: [
             { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a valid JSON array of objects, no extra text: [{"question": "...", "answer": "..."}]' },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
@@ -166,7 +166,7 @@ function AIAssignmentGraderModule() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: 'llama3-8b-8192',
+          model: 'llama-3.1-8b-instant',
           messages: [
             { role: 'system', content: 'You are a strict but fair professor. Grade the following student assignment text out of 100. Provide exactly ONE short paragraph of constructive feedback. Format exactly like this: SCORE: [number]/100\nFEEDBACK: [your paragraph]' }, 
             { role: 'user', content: text }
@@ -243,7 +243,7 @@ function SyllabusModule() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'llama-3.2-11b-vision-preview',
           messages: [{ role: 'user', content: [
             { 
               type: 'text', 
