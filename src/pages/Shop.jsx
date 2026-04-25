@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { Coins, Plus, Trash2, Tag, Gift } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
 
 export function Shop() {
-  const { stats, spendGold } = useGame();
-  const [rewards, setRewards] = useLocalStorage('questlog_rewards', [
-    { id: '1', title: '1 hr of Video Games', cost: 50 },
-    { id: '2', title: 'Watch an Episode', cost: 30 },
-    { id: '3', title: 'Buy a Coffee', cost: 100 },
-  ]);
+  const { stats, spendGold, rewards, setRewards } = useGame();
   const [newTitle, setNewTitle] = useState('');
   const [newCost, setNewCost] = useState('');
 
@@ -32,7 +26,7 @@ export function Shop() {
   };
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-4 page-enter">
       {/* Header */}
       <div className="pb-2">
         <p className="text-white/70 text-sm font-medium">Treat yourself</p>
@@ -56,8 +50,20 @@ export function Shop() {
           Create Custom Reward
         </h3>
         <form onSubmit={addReward} className="flex gap-2">
-          <input type="text" placeholder="Reward name..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" />
-          <input type="number" placeholder="Cost" value={newCost} onChange={e => setNewCost(e.target.value)} className="w-16 shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" />
+          <input 
+            type="text" 
+            placeholder="Reward name..." 
+            value={newTitle} 
+            onChange={e => setNewTitle(e.target.value)} 
+            className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" 
+          />
+          <input 
+            type="number" 
+            placeholder="Cost" 
+            value={newCost} 
+            onChange={e => setNewCost(e.target.value)} 
+            className="w-16 shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" 
+          />
           <button type="submit" className="w-10 h-10 shrink-0 rounded-xl bg-amber-500 text-white flex items-center justify-center hover:bg-amber-600 transition-colors">
             <Plus size={20} />
           </button>

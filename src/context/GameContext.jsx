@@ -21,6 +21,11 @@ export const GameProvider = ({ children }) => {
   const [tasks, setTasks] = useLocalStorage('questlog_tasks', []);
   const [habits, setHabits] = useLocalStorage('questlog_habits', []);
   const [notes, setNotes] = useLocalStorage('questlog_notes', []);
+  const [rewards, setRewards] = useLocalStorage('questlog_rewards', [
+    { id: '1', title: '1 hr of Video Games', cost: 50 },
+    { id: '2', title: 'Watch an Episode', cost: 30 },
+    { id: '3', title: 'Buy a Coffee', cost: 100 },
+  ]);
   const [lastLoginDate, setLastLoginDate] = useLocalStorage('questlog_last_login', new Date().toDateString());
   const [dailyXpEarned, setDailyXpEarned] = useLocalStorage('questlog_daily_xp', 0);
   const [isFocusing, setIsFocusing] = useState(false);
@@ -60,6 +65,9 @@ export const GameProvider = ({ children }) => {
       
       const { data: dbHabits } = await supabase.from('habits').select('*').eq('user_id', session.user.id);
       if (dbHabits) setHabits(dbHabits.map(h => ({ ...h, habitType: h.habit_type, createdAt: h.created_at })));
+
+      const { data: dbRewards } = await supabase.from('rewards').select('*').eq('user_id', session.user.id);
+      if (dbRewards && dbRewards.length > 0) setRewards(dbRewards);
     };
 
     fetchData();
@@ -115,6 +123,22 @@ export const GameProvider = ({ children }) => {
     };
     syncHabits();
   }, [habits, session]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const syncRewards = async () => {
+       await supabase.from('rewards').delete().eq('user_id', session.user.id);
+       if (rewards.length > 0) {
+         await supabase.from('rewards').insert(rewards.map(r => ({
+           user_id: session.user.id,
+           title: r.title,
+           cost: r.cost,
+           created_at: new Date().toISOString()
+         })));
+       }
+    };
+    syncRewards();
+  }, [rewards, session]);
 
 
   // Daily reset check
@@ -213,6 +237,8 @@ export const GameProvider = ({ children }) => {
     setHabits,
     notes,
     setNotes,
+    rewards,
+    setRewards,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
