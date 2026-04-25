@@ -31,7 +31,6 @@ export function PersistentRadio() {
         "bg-[#111116]/95 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500",
         isExpanded ? "h-[320px]" : "h-[56px]"
       )}>
-
         {/* Header / Mini Bar */}
         <div 
           className="h-[56px] px-5 flex items-center justify-between cursor-pointer"
@@ -51,44 +50,45 @@ export function PersistentRadio() {
           </button>
         </div>
 
-        {/* Expanded Player Content */}
-        {isExpanded && (
-          <div className="px-4 pb-4 space-y-4 animate-in fade-in zoom-in-95 duration-300">
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/5 shadow-inner">
-              <iframe
-                width="100%"
-                height="100%"
-                src={focusRadioUrl}
-                title="Focus Radio"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-
-            <form onSubmit={handleUpdate} className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Paste new YouTube link..."
-                value={inputUrl}
-                onChange={(e) => setInputUrl(e.target.value)}
-                className="flex-1 text-[10px] bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 transition-all placeholder:text-white/20"
-              />
-              <button 
-                type="submit" 
-                className="bg-violet-500 hover:bg-violet-600 text-white px-4 rounded-xl text-[10px] font-black uppercase transition-colors"
-              >
-                Set
-              </button>
-            </form>
-
-            <div className="flex items-center justify-center gap-4 text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
-              <span>24/7 Lo-Fi</span>
-              <span className="w-1 h-1 rounded-full bg-white/10" />
-              <span>Crystal Clear Audio</span>
-            </div>
+        {/* Persistent Player Content (Hidden but mounted when minimized) */}
+        <div className={clsx(
+          "px-4 pb-4 space-y-4 transition-all duration-500",
+          isExpanded ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-10 pointer-events-none"
+        )}>
+          <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/5 shadow-inner">
+            <iframe
+              width="100%"
+              height="100%"
+              src={focusRadioUrl}
+              title="Focus Radio"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           </div>
-        )}
+
+          <form onSubmit={handleUpdate} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Paste new YouTube link..."
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              className="flex-1 text-[10px] bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 transition-all placeholder:text-white/20"
+            />
+            <button 
+              type="submit" 
+              className="bg-violet-500 hover:bg-violet-600 text-white px-4 rounded-xl text-[10px] font-black uppercase transition-colors"
+            >
+              Set
+            </button>
+          </form>
+
+          <div className="flex items-center justify-center gap-4 text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
+            <span>24/7 Lo-Fi</span>
+            <span className="w-1 h-1 rounded-full bg-white/10" />
+            <span>Crystal Clear Audio</span>
+          </div>
+        </div>
       </div>
     </div>
   );
