@@ -225,10 +225,22 @@ export const GameProvider = ({ children }) => {
       yesterday.setDate(yesterday.getDate() - 1);
       const wasActiveYesterday = lastLoginDate === yesterday.toDateString();
       
+      // Calculate penalties for missed tasks
+      const incompleteCount = tasks.filter(t => !t.completed).length;
+      const hpPenalty = incompleteCount * 5;
+
       setStats(prev => ({
         ...prev,
-        streak: wasActiveYesterday ? prev.streak + 1 : 1
+        streak: wasActiveYesterday ? prev.streak + 1 : 1,
+        hp: Math.max(0, prev.hp - hpPenalty)
       }));
+
+      // Notify user of penalty
+      if (hpPenalty > 0) {
+        setTimeout(() => {
+          alert(`🌙 Midnight Reset: You missed ${incompleteCount} tasks yesterday and lost ${hpPenalty} HP!`);
+        }, 1000);
+      }
 
       setTasks(prev => prev.map(t => t.type === 'daily' ? { ...t, completed: false } : t));
       setLastLoginDate(today);
