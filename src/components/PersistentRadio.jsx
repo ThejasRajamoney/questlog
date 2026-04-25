@@ -24,16 +24,17 @@ export function PersistentRadio() {
 
   return (
     <div className={clsx(
-      "fixed left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] transition-all duration-500",
-      isExpanded ? "bottom-[80px]" : "bottom-[90px]"
+      "fixed left-1/2 -translate-x-1/2 w-full max-w-[430px] z-[60] transition-all duration-500 px-4",
+      isExpanded ? "bottom-[110px]" : "bottom-[100px]"
     )}>
       <div className={clsx(
-        "mx-4 bg-gray-900/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden transition-all duration-500",
-        isExpanded ? "h-[300px]" : "h-[48px]"
+        "bg-[#111116]/95 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500",
+        isExpanded ? "h-[320px]" : "h-[56px]"
       )}>
+
         {/* Header / Mini Bar */}
         <div 
-          className="h-[48px] px-4 flex items-center justify-between cursor-pointer"
+          className="h-[56px] px-5 flex items-center justify-between cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
         >
           <div className="flex items-center gap-3">
