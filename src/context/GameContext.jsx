@@ -15,6 +15,16 @@ export const GameProvider = ({ children }) => {
   const [tasks, setTasks] = useLocalStorage('questlog_tasks', []);
   const [habits, setHabits] = useLocalStorage('questlog_habits', []);
   const [notes, setNotes] = useLocalStorage('questlog_notes', []);
+  const [lastLoginDate, setLastLoginDate] = useLocalStorage('questlog_last_login', new Date().toDateString());
+
+  React.useEffect(() => {
+    const today = new Date().toDateString();
+    if (lastLoginDate !== today) {
+      // Reset all dailies to uncompleted for the new day
+      setTasks(prev => prev.map(t => t.type === 'daily' ? { ...t, completed: false } : t));
+      setLastLoginDate(today);
+    }
+  }, [lastLoginDate, setTasks, setLastLoginDate]);
 
   const level = Math.floor(Math.sqrt(stats.xp / 100)) + 1;
   const nextLevelXp = Math.pow(level, 2) * 100;
