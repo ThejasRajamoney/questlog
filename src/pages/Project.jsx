@@ -296,7 +296,6 @@ const MODULE_DATA = [
   { id: 'flashcards', icon: BookOpen, title: 'AI Flashcards', color: 'text-indigo-600', bg: 'bg-indigo-50', content: <FlashcardModule /> },
   { id: 'syllabus', icon: GraduationCap, title: 'Syllabus Scan', color: 'text-emerald-600', bg: 'bg-emerald-50', content: <SyllabusModule /> },
   { id: 'heatmap', icon: Grid, title: 'Heatmap', color: 'text-orange-600', bg: 'bg-orange-50', content: <HeatmapModule /> },
-  { id: 'radio', icon: Music, title: 'Focus Radio', color: 'text-violet-600', bg: 'bg-violet-50', content: <RadioModule /> },
   { id: 'gpa', icon: Calculator, title: 'GPA Predictor', color: 'text-amber-600', bg: 'bg-amber-50', content: <GPAModule /> },
 ];
 
