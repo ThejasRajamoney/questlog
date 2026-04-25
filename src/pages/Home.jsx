@@ -198,7 +198,7 @@ export function Home() {
       const newHp = Math.max(0, prev.hp - amount);
       if (newHp === 0) {
         setTimeout(() => {
-          alert(`🎉 You defeated ${prev.name}! You gained 50 XP and 20 Gold!`);
+          showNotification(`You defeated ${prev.name}! +50 XP, +20 Gold!`, 'success');
           gainXp(50);
           gainGold(20);
           setActiveBoss(null);

@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { BottomNav } from './Sidebar';
 import { Topbar } from './Topbar';
 import { PersistentRadio } from './PersistentRadio';
+import { NotificationOverlay } from './NotificationOverlay';
 
 // Gradient backgrounds per route — matching Habitica's vivid page backgrounds
 const PAGE_GRADIENTS = {
@@ -43,6 +44,7 @@ export function Layout() {
         </div>
 
         <PersistentRadio />
+        <NotificationOverlay />
         <BottomNav />
       </div>
     </div>

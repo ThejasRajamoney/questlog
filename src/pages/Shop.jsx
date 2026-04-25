@@ -51,9 +51,9 @@ export function Shop() {
 
   const buyReward = (reward) => {
     if (spendGold(reward.cost)) {
-      alert(`🎉 You bought: ${reward.title}! Enjoy your reward!`);
+      showNotification(`Bought: ${reward.title}!`, 'success');
     } else {
-      alert(`Not enough gold! You need ${reward.cost - (stats.gold || 0)} more.`);
+      showNotification(`Not enough gold! Need ${reward.cost - (stats.gold || 0)} more.`, 'warning');
     }
   };
 
@@ -63,6 +63,7 @@ export function Shop() {
       if (!slot) return prev; // Not equippable
       
       const isCurrentlyEquipped = prev[slot]?.id === item.id;
+      showNotification(isCurrentlyEquipped ? `Unequipped ${item.title}` : `Equipped ${item.title}`, 'info');
 
       return {
         ...prev,
@@ -73,15 +74,15 @@ export function Shop() {
 
   const buyMarketItem = (item) => {
     if (item.type === 'equipment' && inventory.some(i => i.id === item.id)) {
-      alert(`You already own the ${item.title}!`);
+      showNotification(`You already own ${item.title}!`, 'warning');
       return;
     }
     
     if (spendGold(item.cost)) {
       setInventory([{ ...item, instanceId: crypto.randomUUID(), acquiredAt: new Date().toISOString() }, ...inventory]);
-      alert(`🎉 You bought: ${item.title}! It has been added to your inventory.`);
+      showNotification(`Bought ${item.title}! Added to Inventory.`, 'success');
     } else {
-      alert(`Not enough gold! You need ${item.cost - (stats.gold || 0)} more.`);
+      showNotification(`Not enough gold! Need ${item.cost - (stats.gold || 0)} more.`, 'warning');
     }
   };
 

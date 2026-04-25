@@ -38,7 +38,7 @@ const resizeImage = (file, maxWidth = 2048) => {
 
 // ─── 1. AI FLASHCARD GENERATOR ────────────────────────────────────────
 function FlashcardModule() {
-  const { flashcards, setFlashcards, gainXp, activeBoss, setActiveBoss } = useGame();
+  const { flashcards, setFlashcards, gainXp, activeBoss, setActiveBoss, showNotification } = useGame();
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
@@ -56,7 +56,7 @@ function FlashcardModule() {
   };
 
   const generate = async () => {
-    if (!apiKey) { alert('Error: VITE_GROQ_API_KEY is not set in Vercel environment variables!'); return; }
+    if (!apiKey) { showNotification('Error: VITE_GROQ_API_KEY is not set!', 'error'); return; }
     if (!imageBase64) return;
     setLoading(true);
     try {
@@ -80,6 +80,7 @@ function FlashcardModule() {
       if (!jsonMatch) throw new Error(`No JSON array found in response.`);
       
       const newFlash = JSON.parse(jsonMatch[0]);
+      showNotification("Flashcards generated! Ready to study?", "success");
       setFlashcards(prev => [...newFlash.map(f => ({ ...f, id: crypto.randomUUID() })), ...prev]);
       setImagePreview(null);
     } catch (err) { 
@@ -151,7 +152,7 @@ function FlashcardModule() {
 
 // ─── 1.5 AI ASSIGNMENT GRADER ─────────────────────────────────────────
 function AIAssignmentGraderModule() {
-  const { gainXp } = useGame();
+  const { gainXp, showNotification } = useGame();
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -182,7 +183,7 @@ function AIAssignmentGraderModule() {
       gainXp(150, { isVerified: true });
     } catch(e) {
       console.error(e);
-      alert('Failed to grade assignment.');
+      showNotification('Failed to grade assignment.', 'error');
     } finally {
       setLoading(false);
     }
@@ -219,7 +220,7 @@ function AIAssignmentGraderModule() {
 
 // ─── 2. SYLLABUS AI (DEADLINE SCANNER) ────────────────────────────────
 function SyllabusModule() {
-  const { setTasks } = useGame();
+  const { setTasks, showNotification } = useGame();
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   const [loading, setLoading] = useState(false);
   const [imageBase64, setImageBase64] = useState(null);
@@ -264,7 +265,7 @@ If the image is not a syllabus, write: NOT A SYLLABUS`
       const content = data.choices?.[0]?.message?.content?.trim() || '';
       
       if (content.toUpperCase().includes('NOT A SYLLABUS')) {
-        alert('AI says this image doesn\'t look like a syllabus. Please upload a schedule or assignment list.');
+        showNotification('AI says this image doesn\'t look like a syllabus.', 'warning');
         return;
       }
 
@@ -285,12 +286,12 @@ If the image is not a syllabus, write: NOT A SYLLABUS`
       }
 
       if (newTasks.length === 0) {
-        alert('No deadlines detected. Try a clearer photo of the "Schedule" or "Due Dates" section.');
+        showNotification('No deadlines detected.', 'warning');
         return;
       }
 
       setTasks(prev => [...newTasks, ...prev]);
-      alert(`✅ Added ${newTasks.length} Quests to your board!`);
+      showNotification(`Added ${newTasks.length} Quests to your board!`, 'success');
       setImageBase64(null);
     } catch (err) {
       alert(`Scan Error: ${err.message}`);
@@ -426,7 +427,7 @@ function FocusTimerModule() {
             setIsFocusing(false);
             gainXp(50);
             gainGold(10);
-            alert("Pomodoro finished! You gained massive XP and Gold.");
+            showNotification("Pomodoro finished! You gained massive XP and Gold.", "success");
             return 25 * 60;
           }
           return s - 1;
@@ -485,6 +486,7 @@ const MODULE_DATA = [
 ];
 
 export function Project() {
+  const { showNotification } = useGame();
   return (
     <div className="space-y-4 pb-4 page-enter">
       <div className="pb-2">

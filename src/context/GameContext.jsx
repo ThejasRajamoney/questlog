@@ -237,9 +237,7 @@ export const GameProvider = ({ children }) => {
 
       // Notify user of penalty
       if (hpPenalty > 0) {
-        setTimeout(() => {
-          alert(`🌙 Midnight Reset: You missed ${incompleteCount} tasks yesterday and lost ${hpPenalty} HP!`);
-        }, 1000);
+        showNotification(`Midnight Reset: You missed ${incompleteCount} tasks and lost ${hpPenalty} HP!`, 'warning');
       }
 
       setTasks(prev => prev.map(t => t.type === 'daily' ? { ...t, completed: false } : t));
@@ -247,7 +245,7 @@ export const GameProvider = ({ children }) => {
       setDailyXpEarned(0);
       setStats(prev => ({ ...prev, goldEarnedToday: 0 }));
     }
-  }, [lastLoginDate]);
+  }, [lastLoginDate, showNotification]);
 
   // ── Derived values ──────────────────────────────────────────────────
   const level = Math.floor(Math.sqrt(stats.xp / 100)) + 1;
@@ -257,6 +255,13 @@ export const GameProvider = ({ children }) => {
 
   // ── Actions ─────────────────────────────────────────────────────────
   
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = useCallback((message, type = 'info') => {
+    setNotification({ message, type, id: crypto.randomUUID() });
+    setTimeout(() => setNotification(null), 4000);
+  }, []);
+  
   // FIX: Use refs to avoid stale closures
   const gainXp = useCallback((amount, options = {}) => {
     const { isVerified = false } = options;
@@ -265,7 +270,7 @@ export const GameProvider = ({ children }) => {
     const finalAmount = amount * multiplier;
 
     if (!isVerified && dailyXpEarnedRef.current >= XP_CAP) {
-      alert("⚠️ Daily XP Cap reached! Completing habits/tasks won't grant more XP today. Use the AI Assignment Grader for Verified XP!");
+      showNotification("Daily XP Cap reached! Use the AI Assignment Grader for Verified XP!", "warning");
       return false;
     }
 
@@ -283,7 +288,7 @@ export const GameProvider = ({ children }) => {
       });
     }
     return true;
-  }, []);
+  }, [showNotification]);
 
   const gainGold = useCallback((amount) => {
     const GOLD_CAP = 100;
@@ -361,6 +366,8 @@ export const GameProvider = ({ children }) => {
     setGpaData,
     focusRadioUrl,
     setFocusRadioUrl,
+    notification,
+    showNotification
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
