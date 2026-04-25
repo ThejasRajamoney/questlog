@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Coins, Plus, Trash2, Tag, Gift } from 'lucide-react';
+import { Coins, Plus, Trash2, Tag, Gift, Sword, ShoppingBag, Shield } from 'lucide-react';
+import { clsx } from 'clsx';
+
+const MARKET_ITEMS = [
+  { id: 'm1', title: 'Wooden Sword', cost: 30, emoji: '🗡️', type: 'equipment' },
+  { id: 'm2', title: 'Iron Armor', cost: 90, emoji: '🛡️', type: 'equipment' },
+  { id: 'm3', title: 'Health Potion', cost: 15, emoji: '🧪', type: 'consumable' },
+  { id: 'm4', title: 'Pirate Hat', cost: 60, emoji: '🏴‍☠️', type: 'equipment' },
+  { id: 'm5', title: 'Magic Egg', cost: 20, emoji: '🥚', type: 'item' },
+  { id: 'm6', title: 'Golden Key', cost: 70, emoji: '🗝️', type: 'item' },
+];
 
 export function Shop() {
-  const { stats, spendGold, rewards, setRewards } = useGame();
+  const { stats, spendGold, rewards, setRewards, inventory, setInventory } = useGame();
+  const [activeTab, setActiveTab] = useState('market'); // 'market' or 'custom'
   const [newTitle, setNewTitle] = useState('');
   const [newCost, setNewCost] = useState('');
 
@@ -25,12 +36,26 @@ export function Shop() {
     }
   };
 
+  const buyMarketItem = (item) => {
+    if (item.type === 'equipment' && inventory.some(i => i.id === item.id)) {
+      alert(`You already own the ${item.title}!`);
+      return;
+    }
+    
+    if (spendGold(item.cost)) {
+      setInventory([{ ...item, instanceId: crypto.randomUUID(), acquiredAt: new Date().toISOString() }, ...inventory]);
+      alert(`🎉 You bought: ${item.title}! It has been added to your inventory.`);
+    } else {
+      alert(`Not enough gold! You need ${item.cost - (stats.gold || 0)} more.`);
+    }
+  };
+
   return (
     <div className="space-y-4 pb-4 page-enter">
       {/* Header */}
       <div className="pb-2">
         <p className="text-white/70 text-sm font-medium">Treat yourself</p>
-        <h1 className="text-white text-2xl font-black tracking-tight">Rewards Shop</h1>
+        <h1 className="text-white text-2xl font-black tracking-tight">Shop & Market</h1>
       </div>
 
       <div className="bg-white rounded-3xl shadow-md border border-gray-100 p-5 flex items-center justify-between">
@@ -43,56 +68,133 @@ export function Shop() {
         </div>
       </div>
 
-      {/* Add Reward Form */}
-      <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden p-4">
-        <h3 className="font-black text-gray-800 text-sm mb-3 flex items-center gap-2">
-          <Tag size={16} className="text-amber-500" />
-          Create Custom Reward
-        </h3>
-        <form onSubmit={addReward} className="flex gap-2">
-          <input 
-            type="text" 
-            placeholder="Reward name..." 
-            value={newTitle} 
-            onChange={e => setNewTitle(e.target.value)} 
-            className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" 
-          />
-          <input 
-            type="number" 
-            placeholder="Cost" 
-            value={newCost} 
-            onChange={e => setNewCost(e.target.value)} 
-            className="w-16 shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" 
-          />
-          <button type="submit" className="w-10 h-10 shrink-0 rounded-xl bg-amber-500 text-white flex items-center justify-center hover:bg-amber-600 transition-colors">
-            <Plus size={20} />
-          </button>
-        </form>
+      {/* Tabs */}
+      <div className="flex gap-2 bg-white/50 p-1.5 rounded-2xl backdrop-blur-sm border border-white/20">
+        <button
+          onClick={() => setActiveTab('market')}
+          className={clsx(
+            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-300',
+            activeTab === 'market' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:bg-white/50'
+          )}
+        >
+          <ShoppingBag size={16} />
+          Market
+        </button>
+        <button
+          onClick={() => setActiveTab('custom')}
+          className={clsx(
+            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-300',
+            activeTab === 'custom' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:bg-white/50'
+          )}
+        >
+          <Gift size={16} />
+          Custom
+        </button>
       </div>
 
-      {/* Rewards List */}
+      {/* Tab Content */}
       <div className="space-y-3">
-        {rewards.map(reward => {
-          const canAfford = (stats.gold || 0) >= reward.cost;
-          return (
-            <div key={reward.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 slide-up">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                <Gift size={20} className="text-amber-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-800 truncate">{reward.title}</p>
-                <button onClick={() => deleteReward(reward.id)} className="text-[10px] text-rose-400 hover:text-rose-500 font-bold uppercase tracking-wide">Delete</button>
-              </div>
-              <button 
-                onClick={() => buyReward(reward)}
-                className={`px-4 py-2 rounded-xl font-black text-sm flex items-center gap-1.5 transition-all active:scale-95 ${canAfford ? 'bg-amber-500 text-white shadow-md hover:bg-amber-600' : 'bg-gray-100 text-gray-400'}`}
-              >
-                <Coins size={14} className={canAfford ? 'fill-white' : 'fill-gray-400'} />
-                {reward.cost}
-              </button>
+        {activeTab === 'market' && (
+          <div className="grid grid-cols-2 gap-3 slide-up">
+            {MARKET_ITEMS.map(item => {
+              const canAfford = (stats.gold || 0) >= item.cost;
+              const isOwned = item.type === 'equipment' && inventory.some(i => i.id === item.id);
+              
+              return (
+                <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-2 text-center relative overflow-hidden group">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                    {item.emoji}
+                  </div>
+                  <div className="w-full">
+                    <p className="font-bold text-gray-800 text-sm leading-tight mb-1">{item.title}</p>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-2">{item.type}</p>
+                  </div>
+                  <button 
+                    onClick={() => buyMarketItem(item)}
+                    disabled={isOwned}
+                    className={clsx(
+                      'w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95',
+                      isOwned ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
+                      canAfford ? 'bg-indigo-500 text-white shadow-md hover:bg-indigo-600' : 'bg-gray-100 text-gray-400'
+                    )}
+                  >
+                    {isOwned ? (
+                      'OWNED'
+                    ) : (
+                      <>
+                        <Coins size={12} className={canAfford ? 'fill-white' : 'fill-gray-400'} />
+                        {item.cost}
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'custom' && (
+          <div className="space-y-4 slide-up">
+            {/* Add Reward Form */}
+            <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden p-4">
+              <h3 className="font-black text-gray-800 text-sm mb-3 flex items-center gap-2">
+                <Tag size={16} className="text-amber-500" />
+                Create Custom Reward
+              </h3>
+              <form onSubmit={addReward} className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Reward name..." 
+                  value={newTitle} 
+                  onChange={e => setNewTitle(e.target.value)} 
+                  className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" 
+                />
+                <input 
+                  type="number" 
+                  placeholder="Cost" 
+                  value={newCost} 
+                  onChange={e => setNewCost(e.target.value)} 
+                  className="w-16 shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" 
+                />
+                <button type="submit" className="w-10 h-10 shrink-0 rounded-xl bg-amber-500 text-white flex items-center justify-center hover:bg-amber-600 transition-colors">
+                  <Plus size={20} />
+                </button>
+              </form>
             </div>
-          );
-        })}
+
+            {/* Custom Rewards List */}
+            <div className="space-y-3">
+              {rewards.length === 0 ? (
+                <div className="text-center py-6 text-gray-400 font-medium">No custom rewards yet. Create one above!</div>
+              ) : (
+                rewards.map(reward => {
+                  const canAfford = (stats.gold || 0) >= reward.cost;
+                  return (
+                    <div key={reward.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                        <Gift size={20} className="text-amber-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-800 truncate">{reward.title}</p>
+                        <button onClick={() => deleteReward(reward.id)} className="text-[10px] text-rose-400 hover:text-rose-500 font-bold uppercase tracking-wide">Delete</button>
+                      </div>
+                      <button 
+                        onClick={() => buyReward(reward)}
+                        className={clsx(
+                          'px-4 py-2 rounded-xl font-black text-sm flex items-center gap-1.5 transition-all active:scale-95',
+                          canAfford ? 'bg-amber-500 text-white shadow-md hover:bg-amber-600' : 'bg-gray-100 text-gray-400'
+                        )}
+                      >
+                        <Coins size={14} className={canAfford ? 'fill-white' : 'fill-gray-400'} />
+                        {reward.cost}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

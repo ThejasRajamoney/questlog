@@ -21,6 +21,7 @@ export const GameProvider = ({ children }) => {
   const [tasks, setTasks] = useLocalStorage('questlog_tasks', []);
   const [habits, setHabits] = useLocalStorage('questlog_habits', []);
   const [notes, setNotes] = useLocalStorage('questlog_notes', []);
+  const [inventory, setInventory] = useLocalStorage('questlog_inventory', []);
   const [rewards, setRewards] = useLocalStorage('questlog_rewards', [
     { id: '1', title: '1 hr of Video Games', cost: 50 },
     { id: '2', title: 'Watch an Episode', cost: 30 },
@@ -299,6 +300,8 @@ export const GameProvider = ({ children }) => {
     setNotes,
     rewards,
     setRewards,
+    inventory,
+    setInventory,
     flashcards,
     setFlashcards,
     gpaData,
