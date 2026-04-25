@@ -34,16 +34,17 @@ function FlashcardModule() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'llama-3.2-11b-vision-preview',
           messages: [{ role: 'user', content: [
             { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a JSON array: [{"question": "...", "answer": "..."}]' },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}],
-          temperature: 0.3
+          temperature: 0.1,
+          max_tokens: 600
         })
       });
       const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
+      const raw = data.choices?.[0]?.message?.content?.match(/\[.*\]/s)?.[0] || '[]';
       const newFlash = JSON.parse(raw);
       setFlashcards(prev => [...newFlash, ...prev]);
       setImagePreview(null);
@@ -103,9 +104,9 @@ function SyllabusModule() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'llama-3.2-11b-vision-preview',
           messages: [{ role: 'user', content: [
-            { type: 'text', text: 'Scan this syllabus image and extract only the major assignment deadlines. Respond ONLY with a JSON array of objects: [{"title": "Assignment Name", "date": "YYYY-MM-DD"}]' },
+            { type: 'text', text: 'Scan this syllabus image and extract major assignment deadlines. Respond ONLY with a valid JSON array of objects: [{"title": "Assignment Name", "date": "YYYY-MM-DD"}]' },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}]
         })

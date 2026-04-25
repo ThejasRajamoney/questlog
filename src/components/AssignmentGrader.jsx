@@ -107,7 +107,7 @@ export function AssignmentGrader() {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: 'llama-3.2-11b-vision-preview',
           messages: [
             {
               role: 'user',
@@ -122,8 +122,8 @@ export function AssignmentGrader() {
               ],
             },
           ],
-          temperature: 0.3,
-          max_tokens: 600,
+          temperature: 0.1,
+          max_tokens: 800,
         }),
       });
 
@@ -131,8 +131,9 @@ export function AssignmentGrader() {
 
       const data = await response.json();
       const raw = data.choices?.[0]?.message?.content?.trim();
-      const jsonStr = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(jsonStr);
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('AI failed to return valid JSON.');
+      const parsed = JSON.parse(jsonMatch[0]);
 
       if (!parsed.stars || !parsed.verdict) throw new Error('Unexpected response format.');
       setResult(parsed);
@@ -140,6 +141,7 @@ export function AssignmentGrader() {
       // Award Verified XP!
       gainXp(100, { isVerified: true });
     } catch (err) {
+      console.error('Grading Error:', err);
       setError(err.message || 'Something went wrong while grading.');
     } finally {
       setLoading(false);
