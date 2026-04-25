@@ -247,12 +247,9 @@ function SyllabusModule() {
           messages: [{ role: 'user', content: [
             { 
               type: 'text', 
-              text: `EXTRACT ALL ACADEMIC MILESTONES. Scan this syllabus image for assignments, exams, labs, quizzes, and projects. 
+              text: `EXTRACT ALL ACADEMIC MILESTONES. Scan this document (syllabus, schedule, or notes) for assignments, exams, labs, quizzes, and projects. 
 For EVERY item found, list it exactly like this:
-TASK: [name] | DATE: [date]
-
-If no dates are found, use "TBD" for the date.
-If the image is not a syllabus, write: NOT A SYLLABUS`
+TASK: [name] | DATE: [date]`
             },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}],
@@ -263,11 +260,6 @@ If the image is not a syllabus, write: NOT A SYLLABUS`
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content?.trim() || '';
-      
-      if (content.toUpperCase().includes('NOT A SYLLABUS')) {
-        showNotification('AI says this image doesn\'t look like a syllabus.', 'warning');
-        return;
-      }
 
       const lines = content.split('\n');
       const newTasks = [];

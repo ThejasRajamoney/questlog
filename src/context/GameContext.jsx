@@ -131,15 +131,14 @@ export const GameProvider = ({ children }) => {
   const syncStats = useCallback(debounce(async (currentStats, currentSession, currentGpaData) => {
     if (!currentSession?.user) return;
     try {
+      // Conservative sync: only use basic columns that are standard
       const { error } = await supabase.from('profiles').upsert({
         id: currentSession.user.id,
-        xp: currentStats.xp,
-        gold: currentStats.gold,
-        health: currentStats.health,
-        mana: currentStats.mana,
-        verified_xp: currentStats.verifiedXp || 0,
-        streak: currentStats.streak || 1,
-        gpa_data: currentGpaData || {}
+        xp: currentStats.xp || 0,
+        gold: currentStats.gold || 0,
+        health: currentStats.health || 100,
+        mana: currentStats.mana || 50,
+        streak: currentStats.streak || 1
       });
       if (error) console.warn('Supabase Sync Warning:', error.message);
     } catch (e) {
