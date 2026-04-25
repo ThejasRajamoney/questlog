@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { 
   Timer, Brain, BookOpen, CheckCircle2, Plus, Play, Pause, RotateCcw, 
@@ -6,6 +6,34 @@ import {
   Calculator, ChevronRight, Download
 } from 'lucide-react';
 import { clsx } from 'clsx';
+
+// ─── UTILS: IMAGE RESIZER ─────────────────────────────────────────────
+const resizeImage = (file, maxWidth = 1024) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+    };
+  });
+};
 
 // ─── 1. AI FLASHCARD GENERATOR ────────────────────────────────────────
 function FlashcardModule() {
@@ -15,15 +43,14 @@ function FlashcardModule() {
   const [imagePreview, setImagePreview] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setImagePreview(ev.target.result);
-      setImageBase64(ev.target.result.split(',')[1]);
-    };
-    reader.readAsDataURL(file);
+    setLoading(true);
+    const resizedDataUrl = await resizeImage(file);
+    setImagePreview(resizedDataUrl);
+    setImageBase64(resizedDataUrl.split(',')[1]);
+    setLoading(false);
   };
 
   const generate = async () => {
@@ -48,7 +75,10 @@ function FlashcardModule() {
       const newFlash = JSON.parse(raw);
       setFlashcards(prev => [...newFlash, ...prev]);
       setImagePreview(null);
-    } catch (err) { alert('Failed to generate cards.'); }
+    } catch (err) { 
+      console.error('Flashcard Error:', err);
+      alert('Failed to generate cards.'); 
+    }
     finally { setLoading(false); }
   };
 
@@ -88,12 +118,13 @@ function SyllabusModule() {
   const [loading, setLoading] = useState(false);
   const [imageBase64, setImageBase64] = useState(null);
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setImageBase64(ev.target.result.split(',')[1]);
-    reader.readAsDataURL(file);
+    setLoading(true);
+    const resizedDataUrl = await resizeImage(file);
+    setImageBase64(resizedDataUrl.split(',')[1]);
+    setLoading(false);
   };
 
   const scan = async () => {
@@ -112,7 +143,7 @@ function SyllabusModule() {
         })
       });
       const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
+      const raw = data.choices?.[0]?.message?.content?.match(/\[.*\]/s)?.[0] || '[]';
       const scannedTasks = JSON.parse(raw);
       
       const newTasks = scannedTasks.map(t => ({
@@ -124,11 +155,11 @@ function SyllabusModule() {
       }));
 
       setTasks(prev => [...newTasks, ...prev]);
-      alert(`✅ Success! ${newTasks.length} deadlines have been added to your Home board.`);
+      alert(`✅ Success! ${newTasks.length} deadlines added to Home.`);
       setImageBase64(null);
     } catch (err) { 
-      console.error(err);
-      alert('Scan failed. Make sure the image is clear.'); 
+      console.error('Scan Error:', err);
+      alert('Scan failed. Open console for details.'); 
     }
     finally { setLoading(false); }
   };
@@ -154,8 +185,6 @@ function SyllabusModule() {
 function HeatmapModule() {
   const { tasks } = useGame();
   const completedTasks = tasks.filter(t => t.completed);
-  
-  // Fake grid for demo
   const days = Array.from({ length: 28 });
   
   return (
@@ -167,65 +196,6 @@ function HeatmapModule() {
         })}
       </div>
       <p className="text-[10px] text-gray-400 mt-2 text-center font-bold uppercase tracking-widest">Consistency: On Fire! 🔥</p>
-    </div>
-  );
-}
-
-// ─── 4. FOCUS RADIO (YOUTUBE EMBED) ──────────────────────────────────
-function RadioModule() {
-  const { focusRadioUrl, setFocusRadioUrl } = useGame();
-  const [inputUrl, setInputUrl] = useState('');
-  const [showInput, setShowInput] = useState(false);
-
-  const getEmbedUrl = (url) => {
-    if (url.includes('embed')) return url;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : url;
-  };
-
-  const handleUpdate = (e) => {
-    e.preventDefault();
-    if (!inputUrl) return;
-    setFocusRadioUrl(getEmbedUrl(inputUrl));
-    setInputUrl('');
-    setShowInput(false);
-  };
-
-  return (
-    <div className="py-2 space-y-3">
-      <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-gray-100 shadow-inner">
-        <iframe
-          width="100%"
-          height="100%"
-          src={focusRadioUrl}
-          title="Focus Radio"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-      
-      {showInput ? (
-        <form onSubmit={handleUpdate} className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Paste YouTube link..."
-            value={inputUrl}
-            onChange={(e) => setInputUrl(e.target.value)}
-            className="flex-1 text-[10px] bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-violet-400 text-gray-800"
-          />
-          <button type="submit" className="bg-violet-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase">Set</button>
-        </form>
-      ) : (
-        <button 
-          onClick={() => setShowInput(true)}
-          className="w-full py-1.5 border border-dashed border-gray-200 rounded-lg text-[10px] font-black text-gray-400 uppercase hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-        >
-          <Music size={12} />
-          Change Station
-        </button>
-      )}
     </div>
   );
 }
@@ -260,7 +230,7 @@ function FocusTimerModule() {
   const { gainXp, gainGold, setIsFocusing } = useGame();
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);
-  const timerRef = React.useRef(null);
+  const timerRef = useRef(null);
 
   const toggle = () => {
     if (running) {
