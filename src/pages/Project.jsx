@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { Plus, Timer, Brain, BookOpen, Flame } from 'lucide-react';
+import { AssignmentGrader } from '../components/AssignmentGrader';
 
 // ─── Focus Timer (functional countdown) ──────────────────────────────
 function FocusTimerModule() {
@@ -189,6 +190,9 @@ export function Project() {
         <p className="text-white/70 text-sm font-medium">Your workspace</p>
         <h1 className="text-white text-2xl font-black tracking-tight">Projects</h1>
       </div>
+
+      {/* ── AI Assignment Grader (full-width featured) ── */}
+      <AssignmentGrader />
 
       <div className="grid grid-cols-2 gap-3">
         {MODULES.map((mod) => {
