@@ -108,27 +108,75 @@ export function Shop() {
         <button
           onClick={() => setActiveTab('market')}
           className={clsx(
-            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-300',
-            activeTab === 'market' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:bg-white/50'
+            'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300',
+            activeTab === 'market' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-500 hover:bg-white/50'
           )}
         >
-          <ShoppingBag size={16} />
+          <ShoppingBag size={14} />
           Market
+        </button>
+        <button
+          onClick={() => setActiveTab('inventory')}
+          className={clsx(
+            'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300',
+            activeTab === 'inventory' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-500 hover:bg-white/50'
+          )}
+        >
+          <Sword size={14} />
+          Inventory
         </button>
         <button
           onClick={() => setActiveTab('custom')}
           className={clsx(
-            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-300',
-            activeTab === 'custom' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:bg-white/50'
+            'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300',
+            activeTab === 'custom' ? 'bg-amber-500 text-white shadow-md' : 'text-gray-500 hover:bg-white/50'
           )}
         >
-          <Gift size={16} />
-          Custom
+          <Gift size={14} />
+          Rewards
         </button>
       </div>
 
       {/* Tab Content */}
       <div className="space-y-3">
+        {activeTab === 'inventory' && (
+          <div className="space-y-4 slide-up">
+            {inventory.length === 0 ? (
+              <div className="bg-white rounded-3xl p-10 text-center border border-dashed border-gray-200">
+                <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mb-2">Backpack Empty</p>
+                <p className="text-gray-300 text-sm">Visit the market to gear up!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {inventory.map(item => {
+                  const isEquipped = equipped?.weapon?.id === item.id || equipped?.armor?.id === item.id || equipped?.head?.id === item.id;
+                  return (
+                    <div key={item.instanceId} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-2 text-center relative">
+                      {isEquipped && <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />}
+                      <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-xl">
+                        {item.emoji}
+                      </div>
+                      <p className="font-bold text-gray-800 text-xs truncate w-full">{item.title}</p>
+                      {item.type === 'equipment' ? (
+                        <button 
+                          onClick={() => toggleEquip(item)}
+                          className={clsx(
+                            'w-full py-1.5 rounded-lg font-black text-[10px] transition-all',
+                            isEquipped ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100'
+                          )}
+                        >
+                          {isEquipped ? 'UNEQUIP' : 'EQUIP'}
+                        </button>
+                      ) : (
+                        <div className="py-1 px-2 bg-blue-50 text-blue-500 text-[9px] font-black rounded-md uppercase">Consumable</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         {activeTab === 'market' && (
           <div className="grid grid-cols-2 gap-3 slide-up">
             {MARKET_ITEMS.map(item => {

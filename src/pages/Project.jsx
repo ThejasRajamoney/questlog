@@ -246,38 +246,28 @@ function SyllabusModule() {
           messages: [{ role: 'user', content: [
             { 
               type: 'text', 
-              text: `This is a course syllabus. List every assignment, exam, quiz, project, or deadline you can find in it.
-Write one item per line in this exact format:
-TASK: [name of task] | DATE: [date as shown]
+              text: `EXTRACT ALL ACADEMIC MILESTONES. Scan this syllabus image for assignments, exams, labs, quizzes, and projects. 
+For EVERY item found, list it exactly like this:
+TASK: [name] | DATE: [date]
 
-Example:
-TASK: Midterm Exam | DATE: March 15
-TASK: Lab Report 2 | DATE: Week 8
-
-If you see no deadlines at all, write: NONE FOUND`
+If no dates are found, use "TBD" for the date.
+If the image is not a syllabus, write: NOT A SYLLABUS`
             },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}],
-          temperature: 0,
+          temperature: 0.1,
           max_tokens: 2000
         })
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(`Groq API Error ${response.status}: ${data?.error?.message || 'Unknown'}`);
-      }
-
       const content = data.choices?.[0]?.message?.content?.trim() || '';
-      console.log('Syllabus AI response:', content);
-
-      if (!content || content.toUpperCase().includes('NONE FOUND')) {
-        alert('No deadlines detected. Make sure the image shows the schedule/deadline section of your syllabus.');
+      
+      if (content.toUpperCase().includes('NOT A SYLLABUS')) {
+        alert('AI says this image doesn\'t look like a syllabus. Please upload a schedule or assignment list.');
         return;
       }
 
-      // Parse "TASK: X | DATE: Y" lines
       const lines = content.split('\n');
       const newTasks = [];
 
@@ -291,28 +281,18 @@ If you see no deadlines at all, write: NONE FOUND`
             completed: false,
             createdAt: new Date().toISOString()
           });
-        } else if (line.trim().length > 5 && !line.startsWith('TASK') && !line.startsWith('Example')) {
-          // Fallback: grab any non-empty line as a task
-          newTasks.push({
-            id: crypto.randomUUID(),
-            text: line.trim().replace(/^[-*•\d.]+\s*/, ''),
-            type: 'todo',
-            completed: false,
-            createdAt: new Date().toISOString()
-          });
         }
       }
 
       if (newTasks.length === 0) {
-        alert('No deadlines found. Try uploading the page that course schedule or due dates.');
+        alert('No deadlines detected. Try a clearer photo of the "Schedule" or "Due Dates" section.');
         return;
       }
 
       setTasks(prev => [...newTasks, ...prev]);
-      alert(`✅ ${newTasks.length} deadlines added to Home!`);
+      alert(`✅ Added ${newTasks.length} Quests to your board!`);
       setImageBase64(null);
     } catch (err) {
-      console.error('Scan Error:', err);
       alert(`Scan Error: ${err.message}`);
     } finally { 
       setLoading(false); 
@@ -358,24 +338,67 @@ function HeatmapModule() {
 
 // ─── 5. GPA PREDICTOR ─────────────────────────────────────────────────
 function GPAModule() {
-  const { gpaData, setGpaData } = useGame();
+  const [currentGpa, setCurrentGpa] = useState(3.5);
+  const [targetGpa, setTargetGpa] = useState(3.8);
+  const [creditsTaken, setCreditsTaken] = useState(60);
+  const [creditsLeft, setCreditsLeft] = useState(15);
+
+  const needed = ((targetGpa * (creditsTaken + creditsLeft)) - (currentGpa * creditsTaken)) / creditsLeft;
+  const isImpossible = needed > 4.0;
+
   return (
-    <div className="py-2 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[10px] text-gray-400 font-bold uppercase">Current GPA</p>
-          <p className="text-xl font-black text-gray-800">{gpaData.gpa.toFixed(2)}</p>
+    <div className="py-2 space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-gray-400 uppercase">Current GPA</label>
+          <input 
+            type="number" step="0.01" 
+            value={currentGpa} 
+            onChange={e => setCurrentGpa(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+          />
         </div>
-        <div className="text-right">
-          <p className="text-[10px] text-gray-400 font-bold uppercase">Target</p>
-          <p className="text-xl font-black text-amber-500">{gpaData.target.toFixed(2)}</p>
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-gray-400 uppercase">Target GPA</label>
+          <input 
+            type="number" step="0.01" 
+            value={targetGpa} 
+            onChange={e => setTargetGpa(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-gray-400 uppercase">Credits Done</label>
+          <input 
+            type="number" 
+            value={creditsTaken} 
+            onChange={e => setCreditsTaken(parseInt(e.target.value) || 0)}
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-gray-400 uppercase">Credits Left</label>
+          <input 
+            type="number" 
+            value={creditsLeft} 
+            onChange={e => setCreditsLeft(parseInt(e.target.value) || 0)}
+            className="w-full bg-gray-50 border border-gray-100 rounded-lg px-2 py-1.5 text-xs font-bold"
+          />
         </div>
       </div>
-      <div className="space-y-1.5">
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-amber-400 w-[85%] rounded-full" />
-        </div>
-        <p className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-tighter">You need an A- in Physics to hit your target!</p>
+
+      <div className={clsx(
+        "p-3 rounded-2xl text-center border-2",
+        isImpossible ? "bg-rose-50 border-rose-100" : "bg-amber-50 border-amber-100"
+      )}>
+        <p className="text-[10px] font-black text-gray-500 uppercase mb-1">Requirement</p>
+        {isImpossible ? (
+          <p className="text-xs font-black text-rose-600">Impossible with remaining credits! 🛑</p>
+        ) : (
+          <p className="text-sm font-black text-amber-600 uppercase tracking-tighter">
+            You need a <span className="text-lg underline">{needed.toFixed(2)}</span> average!
+          </p>
+        )}
       </div>
     </div>
   );
