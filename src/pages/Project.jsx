@@ -148,7 +148,8 @@ function SyllabusModule() {
   };
 
   const scan = async () => {
-    if (!imageBase64 || !apiKey) return;
+    if (!apiKey) { alert('Error: VITE_GROQ_API_KEY is not set!'); return; }
+    if (!imageBase64) return;
     setLoading(true);
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -157,35 +158,65 @@ function SyllabusModule() {
         body: JSON.stringify({
           model: 'meta-llama/llama-4-scout-17b-16e-instruct',
           messages: [{ role: 'user', content: [
-            { type: 'text', text: 'Scan this syllabus image and extract major assignment deadlines. Respond ONLY with a valid JSON array of objects: [{"title": "Assignment Name", "date": "YYYY-MM-DD"}]' },
+            { 
+              type: 'text', 
+              text: `Look at this syllabus image carefully. Find ALL assignments, exams, quizzes, projects, and deadlines. 
+List every single one you find. Respond ONLY with a JSON array using ANY date format you see (don't convert it):
+[{"title": "Assignment or task name", "date": "date as written in the syllabus"}]
+If you cannot find any deadlines, still return an empty array: []` 
+            },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
-          ]}]
+          ]}],
+          temperature: 0.1,
+          max_tokens: 2000
         })
       });
       
       const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error('AI did not return a valid deadline list.');
-      
-      const scannedTasks = JSON.parse(jsonMatch[0]);
-      
-      if (Array.isArray(scannedTasks)) {
-        const newTasks = scannedTasks.map(t => ({
-          id: crypto.randomUUID(),
-          text: `${t.title} (Due: ${t.date})`,
-          type: 'todo',
-          completed: false,
-          createdAt: new Date().toISOString()
-        }));
 
-        setTasks(prev => [...newTasks, ...prev]);
-        alert(`✅ Success! ${newTasks.length} deadlines added to Home.`);
-        setImageBase64(null);
-      } else {
-        throw new Error('Invalid format returned by AI.');
+      if (!response.ok) {
+        throw new Error(`Groq API Error ${response.status}: ${data?.error?.message || 'Unknown'}`);
       }
+
+      const content = data.choices?.[0]?.message?.content || '';
+      console.log('Syllabus raw response:', content);
+      
+      // Try to find a JSON array in the response
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      
+      let scannedTasks = [];
+      if (jsonMatch) {
+        try {
+          scannedTasks = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          console.warn('JSON parse failed, trying fallback');
+        }
+      }
+
+      if (!Array.isArray(scannedTasks) || scannedTasks.length === 0) {
+        // Fallback: if the model described things in text, extract lines as tasks
+        const lines = content.split('\n').filter(l => l.trim().length > 5 && !l.startsWith('[') && !l.startsWith(']'));
+        if (lines.length > 0) {
+          scannedTasks = lines.map(l => ({ title: l.replace(/^[-*•\d.]+\s*/, '').trim(), date: 'See syllabus' }));
+        }
+      }
+
+      if (scannedTasks.length === 0) {
+        alert('No deadlines found. Try a clearer image or a different page of the syllabus.');
+        return;
+      }
+
+      const newTasks = scannedTasks.filter(t => t.title).map(t => ({
+        id: crypto.randomUUID(),
+        text: t.date && t.date !== 'See syllabus' ? `${t.title} (Due: ${t.date})` : t.title,
+        type: 'todo',
+        completed: false,
+        createdAt: new Date().toISOString()
+      }));
+
+      setTasks(prev => [...newTasks, ...prev]);
+      alert(`✅ ${newTasks.length} deadlines added to Home!`);
+      setImageBase64(null);
     } catch (err) { 
       console.error('Scan Error:', err);
       alert(`Scan Error: ${err.message}`); 
