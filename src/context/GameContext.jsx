@@ -28,6 +28,7 @@ export const GameProvider = ({ children }) => {
   ]);
   const [flashcards, setFlashcards] = useLocalStorage('questlog_flashcards', []);
   const [gpaData, setGpaData] = useLocalStorage('questlog_gpa', { gpa: 4.0, target: 4.0, courses: [] });
+  const [focusRadioUrl, setFocusRadioUrl] = useLocalStorage('questlog_radio_url', 'https://www.youtube.com/embed/jfKfPfyJRdk');
   const [lastLoginDate, setLastLoginDate] = useLocalStorage('questlog_last_login', new Date().toDateString());
   const [dailyXpEarned, setDailyXpEarned] = useLocalStorage('questlog_daily_xp', 0);
   const [isFocusing, setIsFocusing] = useState(false);
@@ -268,6 +269,8 @@ export const GameProvider = ({ children }) => {
     setFlashcards,
     gpaData,
     setGpaData,
+    focusRadioUrl,
+    setFocusRadioUrl,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

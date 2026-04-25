@@ -158,24 +158,61 @@ function HeatmapModule() {
   );
 }
 
-// ─── 4. FOCUS RADIO ──────────────────────────────────────────────────
+// ─── 4. FOCUS RADIO (YOUTUBE EMBED) ──────────────────────────────────
 function RadioModule() {
-  const [playing, setPlaying] = useState(false);
+  const { focusRadioUrl, setFocusRadioUrl } = useGame();
+  const [inputUrl, setInputUrl] = useState('');
+  const [showInput, setShowInput] = useState(false);
+
+  const getEmbedUrl = (url) => {
+    if (url.includes('embed')) return url;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : url;
+  };
+
+  const handleUpdate = (e) => {
+    e.preventDefault();
+    if (!inputUrl) return;
+    setFocusRadioUrl(getEmbedUrl(inputUrl));
+    setInputUrl('');
+    setShowInput(false);
+  };
+
   return (
-    <div className="py-2 flex items-center gap-3">
-      <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-        <Music size={20} className="text-violet-500 animate-pulse" />
+    <div className="py-2 space-y-3">
+      <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-gray-100 shadow-inner">
+        <iframe
+          width="100%"
+          height="100%"
+          src={focusRadioUrl}
+          title="Focus Radio"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-black text-gray-800 uppercase truncate">Lo-Fi Beats to Study</p>
-        <p className="text-[10px] text-gray-400 font-bold uppercase">Focus Radio • Live</p>
-      </div>
-      <button 
-        onClick={() => setPlaying(!playing)}
-        className="w-10 h-10 rounded-full bg-violet-500 text-white flex items-center justify-center hover:scale-105 transition-transform"
-      >
-        {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-1" fill="currentColor" />}
-      </button>
+      
+      {showInput ? (
+        <form onSubmit={handleUpdate} className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Paste YouTube link..."
+            value={inputUrl}
+            onChange={(e) => setInputUrl(e.target.value)}
+            className="flex-1 text-[10px] bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-violet-400 text-gray-800"
+          />
+          <button type="submit" className="bg-violet-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase">Set</button>
+        </form>
+      ) : (
+        <button 
+          onClick={() => setShowInput(true)}
+          className="w-full py-1.5 border border-dashed border-gray-200 rounded-lg text-[10px] font-black text-gray-400 uppercase hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <Music size={12} />
+          Change Station
+        </button>
+      )}
     </div>
   );
 }
