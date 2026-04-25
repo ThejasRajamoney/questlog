@@ -63,21 +63,33 @@ function FlashcardModule() {
         body: JSON.stringify({
           model: 'llama-3.2-11b-vision-preview',
           messages: [{ role: 'user', content: [
-            { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a JSON array: [{"question": "...", "answer": "..."}]' },
+            { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a valid JSON array of objects: [{"question": "...", "answer": "..."}]' },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
           ]}],
           temperature: 0.1,
-          max_tokens: 600
+          max_tokens: 1000
         })
       });
+      
       const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content?.match(/\[.*\]/s)?.[0] || '[]';
-      const newFlash = JSON.parse(raw);
-      setFlashcards(prev => [...newFlash, ...prev]);
-      setImagePreview(null);
+      const content = data.choices?.[0]?.message?.content || '';
+      
+      // Better extraction regex
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('AI did not return a valid flashcard list.');
+      
+      const newFlash = JSON.parse(jsonMatch[0]);
+      
+      if (Array.isArray(newFlash)) {
+        setFlashcards(prev => [...newFlash, ...prev]);
+        setImagePreview(null);
+        alert(`🎉 Created ${newFlash.length} new flashcards!`);
+      } else {
+        throw new Error('Invalid format returned by AI.');
+      }
     } catch (err) { 
       console.error('Flashcard Error:', err);
-      alert('Failed to generate cards.'); 
+      alert(`Flashcard Error: ${err.message}`); 
     }
     finally { setLoading(false); }
   };
@@ -142,24 +154,33 @@ function SyllabusModule() {
           ]}]
         })
       });
-      const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content?.match(/\[.*\]/s)?.[0] || '[]';
-      const scannedTasks = JSON.parse(raw);
       
-      const newTasks = scannedTasks.map(t => ({
-        id: crypto.randomUUID(),
-        text: `${t.title} (Due: ${t.date})`,
-        type: 'todo',
-        completed: false,
-        createdAt: new Date().toISOString()
-      }));
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('AI did not return a valid deadline list.');
+      
+      const scannedTasks = JSON.parse(jsonMatch[0]);
+      
+      if (Array.isArray(scannedTasks)) {
+        const newTasks = scannedTasks.map(t => ({
+          id: crypto.randomUUID(),
+          text: `${t.title} (Due: ${t.date})`,
+          type: 'todo',
+          completed: false,
+          createdAt: new Date().toISOString()
+        }));
 
-      setTasks(prev => [...newTasks, ...prev]);
-      alert(`✅ Success! ${newTasks.length} deadlines added to Home.`);
-      setImageBase64(null);
+        setTasks(prev => [...newTasks, ...prev]);
+        alert(`✅ Success! ${newTasks.length} deadlines added to Home.`);
+        setImageBase64(null);
+      } else {
+        throw new Error('Invalid format returned by AI.');
+      }
     } catch (err) { 
       console.error('Scan Error:', err);
-      alert('Scan failed. Open console for details.'); 
+      alert(`Scan Error: ${err.message}`); 
     }
     finally { setLoading(false); }
   };
