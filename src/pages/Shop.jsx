@@ -4,12 +4,33 @@ import { Coins, Plus, Trash2, Tag, Gift, Sword, ShoppingBag, Shield } from 'luci
 import { clsx } from 'clsx';
 
 const MARKET_ITEMS = [
-  { id: 'm1', title: 'Wooden Sword', cost: 30, emoji: '🗡️', type: 'equipment' },
-  { id: 'm2', title: 'Iron Armor', cost: 90, emoji: '🛡️', type: 'equipment' },
+  // Weapons
+  { id: 'm1', title: 'Wooden Sword', cost: 30, emoji: '🗡️', type: 'equipment', slot: 'weapon' },
+  { id: 'w2', title: 'Assassin Dagger', cost: 80, emoji: '🔪', type: 'equipment', slot: 'weapon' },
+  { id: 'w3', title: 'Hunter Bow', cost: 120, emoji: '🏹', type: 'equipment', slot: 'weapon' },
+  { id: 'w4', title: 'Magic Staff', cost: 150, emoji: '🪄', type: 'equipment', slot: 'weapon' },
+  { id: 'w5', title: 'Excalibur', cost: 500, emoji: '⚔️', type: 'equipment', slot: 'weapon' },
+  
+  // Armor
+  { id: 'a1', title: 'Leather Vest', cost: 40, emoji: '🧥', type: 'equipment', slot: 'armor' },
+  { id: 'm2', title: 'Iron Armor', cost: 90, emoji: '🛡️', type: 'equipment', slot: 'armor' },
+  { id: 'a2', title: 'Wizard Robe', cost: 150, emoji: '👘', type: 'equipment', slot: 'armor' },
+  { id: 'a3', title: 'Diamond Chestplate', cost: 800, emoji: '💎', type: 'equipment', slot: 'armor' },
+
+  // Headgear
+  { id: 'h1', title: 'Cowboy Hat', cost: 50, emoji: '🤠', type: 'equipment', slot: 'head' },
+  { id: 'm4', title: 'Pirate Hat', cost: 60, emoji: '🏴‍☠️', type: 'equipment', slot: 'head' },
+  { id: 'h2', title: 'Wizard Hat', cost: 120, emoji: '🧙‍♂️', type: 'equipment', slot: 'head' },
+  { id: 'h3', title: 'Knight Helm', cost: 200, emoji: '⛑️', type: 'equipment', slot: 'head' },
+  { id: 'h4', title: 'Crown of Wisdom', cost: 1000, emoji: '👑', type: 'equipment', slot: 'head' },
+
+  // Consumables & Items
   { id: 'm3', title: 'Health Potion', cost: 15, emoji: '🧪', type: 'consumable' },
-  { id: 'm4', title: 'Pirate Hat', cost: 60, emoji: '🏴‍☠️', type: 'equipment' },
+  { id: 'c1', title: 'Mana Potion', cost: 20, emoji: '💧', type: 'consumable' },
+  { id: 'c2', title: 'Elixir of Focus', cost: 40, emoji: '☕', type: 'consumable' },
   { id: 'm5', title: 'Magic Egg', cost: 20, emoji: '🥚', type: 'item' },
   { id: 'm6', title: 'Golden Key', cost: 70, emoji: '🗝️', type: 'item' },
+  { id: 'i1', title: 'Dragon Egg', cost: 300, emoji: '🐉', type: 'item' },
 ];
 
 export function Shop() {
@@ -38,13 +59,10 @@ export function Shop() {
 
   const toggleEquip = (item) => {
     setEquipped(prev => {
-      // Very simple equip logic: if it's equipped, unequip it. Otherwise equip it.
-      // We can map item id to body part. Let's just store the whole item or null.
-      const isCurrentlyEquipped = prev.weapon?.id === item.id || prev.armor?.id === item.id || prev.head?.id === item.id;
+      const slot = item.slot;
+      if (!slot) return prev; // Not equippable
       
-      let slot = 'weapon';
-      if (item.title.includes('Armor')) slot = 'armor';
-      if (item.title.includes('Hat')) slot = 'head';
+      const isCurrentlyEquipped = prev[slot]?.id === item.id;
 
       return {
         ...prev,
