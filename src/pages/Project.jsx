@@ -202,7 +202,7 @@ function AIAssistantModule() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="e.g. Write a 10 page paper"
-          className="w-full text-xs bg-fuchsia-50/50 border border-fuchsia-100 rounded-xl px-3 py-2 focus:outline-none focus:border-fuchsia-300 resize-none"
+          className="w-full text-xs bg-fuchsia-50/50 border border-fuchsia-100 rounded-xl px-3 py-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-fuchsia-300 resize-none"
           rows={2}
         />
         <button

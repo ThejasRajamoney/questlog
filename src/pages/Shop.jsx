@@ -56,8 +56,8 @@ export function Shop() {
           Create Custom Reward
         </h3>
         <form onSubmit={addReward} className="flex gap-2">
-          <input type="text" placeholder="Reward name..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400" />
-          <input type="number" placeholder="Cost" value={newCost} onChange={e => setNewCost(e.target.value)} className="w-16 shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-amber-400" />
+          <input type="text" placeholder="Reward name..." value={newTitle} onChange={e => setNewTitle(e.target.value)} className="flex-1 min-w-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" />
+          <input type="number" placeholder="Cost" value={newCost} onChange={e => setNewCost(e.target.value)} className="w-16 shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 transition-all" />
           <button type="submit" className="w-10 h-10 shrink-0 rounded-xl bg-amber-500 text-white flex items-center justify-center hover:bg-amber-600 transition-colors">
             <Plus size={20} />
           </button>
