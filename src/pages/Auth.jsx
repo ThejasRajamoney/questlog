@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
-import { LogIn, UserPlus, ShieldCheck, Sparkles, Sword, Trophy } from 'lucide-react';
+import { LogIn, UserPlus, ShieldCheck, Sparkles, Sword, Trophy, Play } from 'lucide-react';
 import gsap from 'gsap';
 
 export function Auth() {
@@ -18,7 +18,6 @@ export function Auth() {
   const floatersRef = useRef([]);
 
   useEffect(() => {
-    // Initial entry animation
     const ctx = gsap.context(() => {
       const tl = gsap.timeline();
       
@@ -27,7 +26,6 @@ export function Auth() {
         .fromTo(titleRef.current.children, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, stagger: 0.2, ease: "power3.out" }, "-=0.8")
         .fromTo(formRef.current.children, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: "power2.out" }, "-=0.4");
 
-      // Floating icons animation
       floatersRef.current.forEach((el, i) => {
         gsap.to(el, {
           y: "random(-20, 20)",
@@ -63,13 +61,25 @@ export function Auth() {
     setLoading(false);
   };
 
+  const tryDemo = async () => {
+    setLoading(true);
+    setMessage({ type: 'success', text: 'Initializing Demo Environment...' });
+    // First try to login
+    const { error } = await supabase.auth.signInWithPassword({ email: 'demo@questlog.com', password: 'hackathon2026' });
+    if (error) {
+      // If user doesn't exist, sign up
+      await supabase.auth.signUp({ email: 'demo@questlog.com', password: 'hackathon2026' });
+    }
+    setLoading(false);
+  };
+
   return (
     <div ref={containerRef} className="min-h-screen relative flex items-center justify-center bg-[#0a0a0c] overflow-hidden px-4 font-sans select-none">
       
       {/* Cinematic Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-teal-500/10 blur-[120px] rounded-full" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[120px] rounded-full" />
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       </div>
 
@@ -91,28 +101,51 @@ export function Auth() {
         ))}
       </div>
 
-      <div ref={cardRef} className="relative w-full max-w-[440px] bg-white/[0.03] backdrop-blur-2xl rounded-[40px] shadow-[0_32px_64px_rgba(0,0,0,0.5)] border border-white/10 p-8 md:p-12 space-y-8">
+      <div ref={cardRef} className="relative w-full max-w-[480px] bg-white/[0.03] backdrop-blur-2xl rounded-[40px] shadow-[0_32px_64px_rgba(0,0,0,0.5)] border border-white/10 p-8 md:p-12 space-y-8">
         
-        <div ref={titleRef} className="text-center space-y-2">
+        <div ref={titleRef} className="text-center space-y-3">
           <div className="inline-flex p-4 bg-emerald-500/10 rounded-3xl border border-emerald-500/20 mb-2">
-            <Sparkles className="text-emerald-400 animate-pulse" size={32} />
+            <Sword className="text-emerald-400 animate-pulse" size={32} />
           </div>
-          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-tight">
-            {isSignUp ? 'Begin Your Journey' : 'Resume Your Quest'}
+          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">
+            QuestLog
           </h1>
-          <p className="text-emerald-500/60 text-sm font-bold tracking-wide uppercase">
-            {isSignUp ? 'Join the rank of scholars' : 'The library awaits your return'}
+          <p className="text-emerald-500/80 text-sm font-bold tracking-wide uppercase">
+            Turn Studying into an RPG
+          </p>
+          <p className="text-white/40 text-sm max-w-sm mx-auto leading-relaxed pt-2">
+            Upload your syllabus to generate quests. Defeat bosses, collect gear, and level up your real life.
           </p>
         </div>
 
-        <form ref={formRef} onSubmit={handleAuth} className="space-y-5">
+        <form ref={formRef} onSubmit={handleAuth} className="space-y-4">
+          
+          <button 
+            type="button"
+            onClick={tryDemo}
+            disabled={loading}
+            className="group relative w-full py-4 rounded-2xl bg-indigo-500 overflow-hidden text-white font-black text-sm shadow-[0_20px_40px_rgba(99,102,241,0.3)] hover:shadow-[0_20px_50px_rgba(99,102,241,0.5)] active:scale-[0.98] transition-all duration-300 mb-6"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative flex items-center justify-center gap-3">
+              <Play size={18} fill="currentColor" />
+              <span>Try Interactive Demo</span>
+            </div>
+          </button>
+
+          <div className="flex items-center gap-4 py-2">
+            <div className="h-px flex-1 bg-white/10"></div>
+            <span className="text-xs font-bold text-white/30 uppercase tracking-widest">OR</span>
+            <div className="h-px flex-1 bg-white/10"></div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.2em] ml-2">Identify Email</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-white/[0.05] border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
+              className="w-full bg-white/[0.05] border border-white/10 rounded-2xl px-5 py-3.5 text-white text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
               placeholder="e.g. merlin@questlog.com"
               required
             />
@@ -124,23 +157,23 @@ export function Auth() {
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/[0.05] border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
+              className="w-full bg-white/[0.05] border border-white/10 rounded-2xl px-5 py-3.5 text-white text-sm focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.08] transition-all placeholder:text-white/10"
               placeholder="••••••••"
               required
             />
           </div>
 
           <button 
+            type="submit"
             disabled={loading}
-            className="group relative w-full py-5 rounded-2xl bg-emerald-500 overflow-hidden text-white font-black text-sm shadow-[0_20px_40px_rgba(16,185,129,0.3)] hover:shadow-[0_20px_50px_rgba(16,185,129,0.5)] active:scale-[0.98] transition-all duration-300"
+            className="group relative w-full py-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-white font-black text-sm active:scale-[0.98] transition-all duration-300"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="relative flex items-center justify-center gap-3">
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  {isSignUp ? <UserPlus size={18} strokeWidth={3} /> : <LogIn size={18} strokeWidth={3} />}
+                  {isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
                   <span>{isSignUp ? 'Create Avatar' : 'Enter Workspace'}</span>
                 </>
               )}
@@ -159,25 +192,12 @@ export function Auth() {
 
         <div className="text-center pt-4 border-t border-white/5">
           <button 
-            onClick={() => {
-              gsap.to(cardRef.current, { 
-                opacity: 0, x: isSignUp ? 20 : -20, duration: 0.3, 
-                onComplete: () => {
-                  setIsSignUp(!isSignUp);
-                  gsap.to(cardRef.current, { opacity: 1, x: 0, duration: 0.3 });
-                }
-              });
-            }}
+            onClick={() => setIsSignUp(!isSignUp)}
             className="text-[11px] font-black text-white/40 hover:text-emerald-400 tracking-widest uppercase transition-colors flex items-center justify-center gap-2 mx-auto"
           >
             {isSignUp ? 'Already a legend? Log In' : "New hero? Start your legend"}
           </button>
         </div>
-      </div>
-
-      {/* Footer Branding */}
-      <div className="absolute bottom-8 text-[10px] font-black text-white/20 tracking-[0.5em] uppercase">
-        QuestLog © 2026
       </div>
     </div>
   );

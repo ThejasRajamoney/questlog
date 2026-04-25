@@ -23,6 +23,7 @@ export const GameProvider = ({ children }) => {
   const [notes, setNotes] = useLocalStorage('questlog_notes', []);
   const [inventory, setInventory] = useLocalStorage('questlog_inventory', []);
   const [equipped, setEquipped] = useLocalStorage('questlog_equipped', { weapon: null, armor: null, head: null });
+  const [activeBoss, setActiveBoss] = useLocalStorage('questlog_boss', null);
   const [rewards, setRewards] = useLocalStorage('questlog_rewards', [
     { id: '1', title: '1 hr of Video Games', cost: 50 },
     { id: '2', title: 'Watch an Episode', cost: 30 },
@@ -330,6 +331,8 @@ export const GameProvider = ({ children }) => {
     setInventory,
     equipped,
     setEquipped,
+    activeBoss,
+    setActiveBoss,
     flashcards,
     setFlashcards,
     gpaData,

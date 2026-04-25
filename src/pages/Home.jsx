@@ -190,7 +190,36 @@ function SectionCard({ title, emoji, children }) {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────
 export function Home() {
-  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, loseHealth, equipped } = useGame();
+  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, loseHealth, equipped, activeBoss, setActiveBoss } = useGame();
+
+  const damageBoss = (amount) => {
+    if (!activeBoss) return;
+    setActiveBoss(prev => {
+      const newHp = Math.max(0, prev.hp - amount);
+      if (newHp === 0) {
+        setTimeout(() => {
+          alert(`🎉 You defeated ${prev.name}! You gained 50 XP and 20 Gold!`);
+          gainXp(50);
+          gainGold(20);
+          setActiveBoss(null);
+        }, 300);
+      }
+      return { ...prev, hp: newHp };
+    });
+  };
+
+  const spawnBoss = () => {
+    const bossNames = ["Calculus Dragon", "Procrastination Demon", "Midterm Monster", "Essay Phantom"];
+    const emojis = ["🐉", "👹", "👾", "👻"];
+    const idx = Math.floor(Math.random() * bossNames.length);
+    setActiveBoss({
+      id: crypto.randomUUID(),
+      name: bossNames[idx],
+      emoji: emojis[idx],
+      hp: 100,
+      maxHp: 100
+    });
+  };
 
   // Task actions
   const addTask = (type) => (text) => {
@@ -209,6 +238,7 @@ export function Home() {
         if (!t.completed) {
           gainXp(15);
           gainGold(2);
+          if (activeBoss) damageBoss(15); // Deal 15 damage to boss
         }
         return { ...t, completed: !t.completed };
       }
@@ -233,6 +263,7 @@ export function Home() {
     setHabits((prev) => prev.map((h) => h.id === id ? { ...h, score: h.score + 1 } : h));
     gainXp(10);
     gainGold(1);
+    if (activeBoss) damageBoss(10); // Deal 10 damage to boss
   };
 
   const penaltyHabit = (id) => {
@@ -253,29 +284,38 @@ export function Home() {
         <h1 className="text-white text-3xl font-black tracking-tight drop-shadow-md">Your Quest Board</h1>
       </div>
 
-      {/* Visual Avatar */}
-      <div className="flex justify-center mb-6 slide-up">
-        <div className="relative w-32 h-32 bg-white/20 backdrop-blur-md rounded-full border-4 border-white/40 flex items-center justify-center shadow-xl">
-          {/* Base Character */}
+      {/* Visual Avatar & Boss Area */}
+      <div className="flex items-end justify-center gap-6 mb-6 slide-up">
+        {/* Visual Avatar */}
+        <div className="relative w-32 h-32 bg-white/20 backdrop-blur-md rounded-full border-4 border-white/40 flex items-center justify-center shadow-xl shrink-0">
           <div className="text-6xl drop-shadow-md">🧍</div>
-          
-          {/* Equipment Overlays */}
-          {equipped?.armor && (
-            <div className="absolute top-6 text-6xl drop-shadow-lg z-10 pointer-events-none" title={equipped.armor.title}>
-              {equipped.armor.emoji}
-            </div>
-          )}
-          {equipped?.head && (
-            <div className="absolute -top-6 text-6xl drop-shadow-lg z-20 pointer-events-none" title={equipped.head.title}>
-              {equipped.head.emoji}
-            </div>
-          )}
-          {equipped?.weapon && (
-            <div className="absolute -right-4 top-8 text-5xl drop-shadow-lg z-10 rotate-12 pointer-events-none" title={equipped.weapon.title}>
-              {equipped.weapon.emoji}
-            </div>
-          )}
+          {equipped?.armor && <div className="absolute top-6 text-6xl drop-shadow-lg z-10 pointer-events-none">{equipped.armor.emoji}</div>}
+          {equipped?.head && <div className="absolute -top-6 text-6xl drop-shadow-lg z-20 pointer-events-none">{equipped.head.emoji}</div>}
+          {equipped?.weapon && <div className="absolute -right-4 top-8 text-5xl drop-shadow-lg z-10 rotate-12 pointer-events-none">{equipped.weapon.emoji}</div>}
         </div>
+
+        {/* Boss Battle */}
+        {activeBoss ? (
+          <div className="relative w-32 h-32 flex flex-col items-center justify-end group">
+            <div className="text-6xl drop-shadow-xl animate-bounce mb-2">{activeBoss.emoji}</div>
+            
+            {/* Boss HP Bar */}
+            <div className="w-full bg-gray-900 rounded-full h-3 border-2 border-white shadow-lg overflow-hidden relative">
+              <div 
+                className="h-full bg-rose-500 transition-all duration-300" 
+                style={{ width: `${(activeBoss.hp / activeBoss.maxHp) * 100}%` }}
+              />
+            </div>
+            <div className="absolute -bottom-5 text-[10px] font-black text-white bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+              {activeBoss.name} {activeBoss.hp}/{activeBoss.maxHp}
+            </div>
+          </div>
+        ) : (
+          <button onClick={spawnBoss} className="relative w-32 h-32 rounded-3xl border-2 border-dashed border-white/30 flex flex-col items-center justify-center text-white/50 hover:bg-white/10 hover:border-white/50 transition-all">
+            <span className="text-2xl mb-1">⚔️</span>
+            <span className="text-xs font-bold">Summon Boss</span>
+          </button>
+        )}
       </div>
 
       {/* ── Habits ── */}
