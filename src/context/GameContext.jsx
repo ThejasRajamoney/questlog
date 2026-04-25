@@ -85,21 +85,28 @@ export const GameProvider = ({ children }) => {
     hasFetched.current = true;
 
     const fetchData = async () => {
-      const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-      
-      if (profile) {
-        setStats({
-          xp: profile.xp || 0,
-          gold: profile.gold || 0,
-          health: profile.health || 100,
-          mana: profile.mana || 50,
-          verifiedXp: profile.verified_xp || 0,
-          streak: profile.streak || 1
-        });
-        if (profile.gpa_data) setGpaData(profile.gpa_data);
-      } else {
-        // Fallback or initial creation if needed
-        console.log('No profile found, will be created on first sync');
+      try {
+        const { data: profile, error: pError } = await supabase
+          .from('profiles')
+          .select('xp, gold, health, mana, verified_xp, streak, gpa_data')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        
+        if (pError) {
+          console.warn('Profile Fetch Error (PostgREST):', pError.message);
+        } else if (profile) {
+          setStats({
+            xp: profile.xp || 0,
+            gold: profile.gold || 0,
+            health: profile.health || 100,
+            mana: profile.mana || 50,
+            verifiedXp: profile.verified_xp || 0,
+            streak: profile.streak || 1
+          });
+          if (profile.gpa_data) setGpaData(profile.gpa_data);
+        }
+      } catch (err) {
+        console.error('Critical Profile Fetch Error:', err);
       }
 
       const { data: dbTasks } = await supabase.from('tasks').select('*').eq('user_id', session.user.id);
