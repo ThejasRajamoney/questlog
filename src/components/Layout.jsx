@@ -16,7 +16,8 @@ const PAGE_GRADIENTS = {
 
 export function Layout() {
   const { pathname } = useLocation();
-  const gradient = PAGE_GRADIENTS[pathname] || PAGE_GRADIENTS['/'];
+  const normalizedPath = pathname.startsWith('/app') ? (pathname.slice(4) || '/') : pathname;
+  const gradient = PAGE_GRADIENTS[normalizedPath] || PAGE_GRADIENTS['/'];
 
   return (
     /* Outer centering shell — keeps it phone-width in browser */

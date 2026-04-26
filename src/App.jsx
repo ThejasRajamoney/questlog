@@ -15,7 +15,7 @@ function App() {
   const { session } = useGame();
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/app">
       <Routes>
         {!session ? (
           <Route path="*" element={<Auth />} />

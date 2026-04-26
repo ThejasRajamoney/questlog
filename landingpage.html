@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuestLog — Turn Studying into an RPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --teal: #00e5a0;
+    --teal-dim: #00b37a;
+    --purple: #a78bfa;
+    --purple-dim: #7c3aed;
+    --gold: #fbbf24;
+    --pink: #f472b6;
+    --bg: #080b12;
+    --bg2: #0d1220;
+    --bg3: #111827;
+    --text: #f0f4ff;
+    --muted: #6b7a99;
+    --card: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* ── STARS BACKGROUND ── */
+  .stars {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse at 20% 30%, rgba(0,229,160,0.07) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 70%, rgba(167,139,250,0.07) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(251,191,36,0.03) 0%, transparent 70%);
+  }
+  .stars::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 45%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 55% 20%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 10%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 25% 80%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 90% 40%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 45% 70%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 65% 85%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 5% 55%, rgba(255,255,255,0.5) 0%, transparent 100%);
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; width: 100%; z-index: 100;
+    padding: 1.2rem 3rem;
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(8,11,18,0.7);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-family: 'Cinzel', serif;
+    font-size: 1.3rem; font-weight: 700;
+    color: var(--teal);
+    letter-spacing: 0.05em;
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  .nav-logo .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--teal), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .nav-cta {
+    background: var(--teal); color: #060a10;
+    border: none; border-radius: 50px;
+    padding: 0.55rem 1.5rem;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.9rem; font-weight: 800;
+    cursor: pointer; text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 20px rgba(0,229,160,0.3);
+  }
+  .nav-cta:hover { transform: scale(1.05); box-shadow: 0 0 32px rgba(0,229,160,0.5); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 8rem 2rem 4rem;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.25);
+    border-radius: 50px; padding: 0.35rem 1rem;
+    font-size: 0.8rem; font-weight: 700;
+    color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 2rem;
+    animation: fadeSlideDown 0.7s ease both;
+  }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 2s infinite; }
+
+  .hero-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    animation: fadeSlideDown 0.7s 0.15s ease both;
+  }
+  .hero-title .line-teal { color: var(--teal); display: block; }
+  .hero-title .line-white { color: #ffffff; display: block; }
+  .hero-title .line-gold { color: var(--gold); display: block; }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: var(--muted); font-weight: 600;
+    max-width: 560px; line-height: 1.6;
+    margin-bottom: 2.5rem;
+    animation: fadeSlideDown 0.7s 0.3s ease both;
+  }
+
+  .hero-actions {
+    display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 4rem;
+    animation: fadeSlideDown 0.7s 0.45s ease both;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--teal), var(--teal-dim));
+    color: #060a10; border: none; border-radius: 50px;
+    padding: 0.9rem 2.2rem;
+    font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 800;
+    cursor: pointer; text-decoration: none;
+    box-shadow: 0 0 40px rgba(0,229,160,0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 60px rgba(0,229,160,0.5); }
+  .btn-secondary {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border); border-radius: 50px;
+    padding: 0.9rem 2.2rem;
+    font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 700;
+    cursor: pointer; text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--purple); background: rgba(167,139,250,0.08); }
+
+  /* ── FLOATING PHONE ── */
+  .phone-wrap {
+    position: relative;
+    animation: fadeSlideDown 0.9s 0.6s ease both, float 6s ease-in-out infinite 1.5s;
+  }
+  .phone-glow {
+    position: absolute; inset: -40px;
+    background: radial-gradient(ellipse, rgba(0,229,160,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .phone-frame {
+    width: 270px; height: 560px;
+    background: #0d1220;
+    border-radius: 36px;
+    border: 2px solid rgba(255,255,255,0.15);
+    box-shadow:
+      0 60px 120px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(255,255,255,0.05),
+      inset 0 1px 0 rgba(255,255,255,0.1);
+    overflow: hidden;
+    position: relative;
+  }
+  .phone-notch {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 80px; height: 10px; background: #060a10;
+    border-radius: 10px; z-index: 10;
+  }
+
+  /* Phone screen content */
+  .phone-screen {
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, #0f9b72 0%, #0d1220 40%);
+    display: flex; flex-direction: column;
+    padding: 0;
+    font-size: 10px;
+  }
+  .ps-topbar {
+    background: rgba(255,255,255,0.1);
+    padding: 20px 12px 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ps-level {
+    background: var(--teal); color: #060a10;
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 13px;
+  }
+  .ps-bars { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .ps-bar { height: 4px; border-radius: 2px; }
+  .ps-bar.hp { background: linear-gradient(90deg, #ff4d7d, #ff8ba7); width: 80%; }
+  .ps-bar.mp { background: linear-gradient(90deg, #5b8ff9, #93b8ff); width: 65%; }
+  .ps-bar.xp { background: linear-gradient(90deg, #00e5a0, #00ffc3); width: 40%; }
+  .ps-gold { color: var(--gold); font-weight: 800; font-size: 10px; }
+
+  .ps-hero-section {
+    background: linear-gradient(180deg, rgba(0,229,160,0.2), transparent);
+    padding: 8px 12px;
+    text-align: center;
+  }
+  .ps-board-title { color: #fff; font-weight: 900; font-size: 13px; font-family: 'Nunito', sans-serif; }
+  .ps-battle {
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 6px 0;
+  }
+  .ps-hero-icon { font-size: 24px; }
+  .ps-vs { color: rgba(255,255,255,0.5); font-size: 8px; font-weight: 700; }
+  .ps-boss-wrap { text-align: center; }
+  .ps-boss-icon { font-size: 28px; display: block; }
+  .ps-boss-bar-wrap { width: 70px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin: 2px auto 0; }
+  .ps-boss-bar { height: 100%; background: #ff4d7d; border-radius: 2px; width: 60%; }
+  .ps-boss-label { font-size: 7px; color: rgba(255,255,255,0.7); margin-top: 1px; }
+
+  .ps-section {
+    background: #fff; border-radius: 14px 14px 0 0;
+    flex: 1; margin-top: 4px; padding: 10px;
+    overflow: hidden;
+  }
+  .ps-sec-title { font-weight: 900; font-size: 10px; color: #1a1a2e; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .ps-task {
+    background: #f8f9ff; border-radius: 8px;
+    padding: 6px 8px; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 8px; color: #444;
+  }
+  .ps-task-dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #ccc; flex-shrink: 0; }
+  .ps-task-done .ps-task-dot { background: var(--teal); border-color: var(--teal); }
+  .ps-task-done span { text-decoration: line-through; color: #aaa; }
+  .ps-nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 1px solid #eee;
+    display: flex; padding: 6px 0 10px;
+    justify-content: space-around;
+  }
+  .ps-nav-item { font-size: 14px; text-align: center; }
+
+  /* ── FLOATING BADGES ── */
+  .float-badge {
+    position: absolute;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 12px; padding: 0.5rem 0.8rem;
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.75rem; font-weight: 700;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    white-space: nowrap;
+    animation: float 5s ease-in-out infinite;
+  }
+  .fb1 { left: -90px; top: 100px; animation-delay: 0s; }
+  .fb2 { right: -80px; top: 200px; animation-delay: 1.5s; }
+  .fb3 { left: -60px; bottom: 120px; animation-delay: 0.8s; }
+  .fb-icon { font-size: 18px; }
+  .fb-label { color: var(--muted); font-size: 0.65rem; font-weight: 600; }
+  .fb-val { color: var(--teal); font-size: 0.9rem; font-weight: 800; }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    position: relative; z-index: 1;
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 0;
+    background: linear-gradient(90deg, transparent, rgba(0,229,160,0.05), transparent);
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    padding: 2rem;
+    margin-bottom: 5rem;
+  }
+  .stat-item {
+    flex: 1; min-width: 160px; text-align: center;
+    padding: 1.5rem 2rem;
+    border-right: 1px solid var(--border);
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-num {
+    font-family: 'Cinzel', serif;
+    font-size: 2.8rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--teal), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+  }
+  .stat-label { color: var(--muted); font-size: 0.85rem; font-weight: 600; margin-top: 0.3rem; }
+
+  /* ── SECTION COMMONS ── */
+  section { position: relative; z-index: 1; }
+  .section-inner { max-width: 1100px; margin: 0 auto; padding: 5rem 2rem; }
+  .section-tag {
+    display: inline-block;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--teal); margin-bottom: 1rem;
+  }
+  .section-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2rem, 4vw, 3rem); font-weight: 700;
+    line-height: 1.15; margin-bottom: 1rem;
+  }
+  .section-sub { color: var(--muted); font-size: 1.05rem; font-weight: 600; max-width: 520px; line-height: 1.6; }
+
+  /* ── FEATURES GRID ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem; margin-top: 3rem;
+  }
+  .feat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2rem;
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    position: relative; overflow: hidden;
+  }
+  .feat-card::before {
+    content: ''; position: absolute;
+    inset: 0; border-radius: 20px;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .feat-card:hover { transform: translateY(-4px); }
+  .feat-card:hover::before { opacity: 1; }
+
+  .fc-teal { border-color: rgba(0,229,160,0.15); }
+  .fc-teal:hover { border-color: rgba(0,229,160,0.4); box-shadow: 0 20px 60px rgba(0,229,160,0.1); }
+  .fc-teal::before { background: radial-gradient(circle at top left, rgba(0,229,160,0.06), transparent 60%); }
+
+  .fc-purple { border-color: rgba(167,139,250,0.15); }
+  .fc-purple:hover { border-color: rgba(167,139,250,0.4); box-shadow: 0 20px 60px rgba(167,139,250,0.1); }
+  .fc-purple::before { background: radial-gradient(circle at top left, rgba(167,139,250,0.06), transparent 60%); }
+
+  .fc-gold { border-color: rgba(251,191,36,0.15); }
+  .fc-gold:hover { border-color: rgba(251,191,36,0.4); box-shadow: 0 20px 60px rgba(251,191,36,0.1); }
+  .fc-gold::before { background: radial-gradient(circle at top left, rgba(251,191,36,0.06), transparent 60%); }
+
+  .fc-pink { border-color: rgba(244,114,182,0.15); }
+  .fc-pink:hover { border-color: rgba(244,114,182,0.4); box-shadow: 0 20px 60px rgba(244,114,182,0.1); }
+  .fc-pink::before { background: radial-gradient(circle at top left, rgba(244,114,182,0.06), transparent 60%); }
+
+  .feat-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 1.2rem;
+  }
+  .fi-teal { background: rgba(0,229,160,0.15); }
+  .fi-purple { background: rgba(167,139,250,0.15); }
+  .fi-gold { background: rgba(251,191,36,0.15); }
+  .fi-pink { background: rgba(244,114,182,0.15); }
+
+  .feat-title { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .feat-desc { color: var(--muted); font-size: 0.9rem; line-height: 1.6; font-weight: 600; }
+  .feat-tag {
+    display: inline-block; margin-top: 1rem;
+    font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 0.25rem 0.75rem; border-radius: 50px;
+  }
+  .ft-teal { background: rgba(0,229,160,0.12); color: var(--teal); }
+  .ft-purple { background: rgba(167,139,250,0.12); color: var(--purple); }
+  .ft-gold { background: rgba(251,191,36,0.12); color: var(--gold); }
+  .ft-pink { background: rgba(244,114,182,0.12); color: var(--pink); }
+
+  /* ── HOW IT WORKS ── */
+  .how-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
+    align-items: center; margin-top: 2rem;
+  }
+  @media (max-width: 768px) { .how-grid { grid-template-columns: 1fr; gap: 2rem; } }
+
+  .steps { display: flex; flex-direction: column; gap: 1.5rem; }
+  .step {
+    display: flex; gap: 1rem; align-items: flex-start;
+    padding: 1.2rem 1.5rem;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; transition: border-color 0.3s;
+    cursor: default;
+  }
+  .step:hover { border-color: rgba(0,229,160,0.3); }
+  .step-num {
+    font-family: 'Cinzel', serif; font-weight: 700;
+    font-size: 1.5rem; color: var(--teal); min-width: 36px;
+    line-height: 1;
+  }
+  .step-title { font-weight: 800; font-size: 1rem; margin-bottom: 0.3rem; }
+  .step-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.5; font-weight: 600; }
+
+  /* Big phone mockup */
+  .big-phone-wrap {
+    display: flex; justify-content: center; align-items: center;
+    position: relative;
+  }
+  .big-phone-glow {
+    position: absolute; inset: -60px;
+    background: radial-gradient(ellipse, rgba(167,139,250,0.2) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .big-phone {
+    width: 300px; height: 620px;
+    background: var(--bg3); border-radius: 40px;
+    border: 2px solid rgba(255,255,255,0.12);
+    box-shadow: 0 60px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    overflow: hidden; position: relative;
+  }
+  .big-phone-screen {
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, #6b21a8 0%, #1e1b4b 30%, #0d1220 60%);
+    padding: 0;
+    font-family: 'Nunito', sans-serif;
+  }
+  .bps-header {
+    padding: 20px 14px 10px;
+    background: linear-gradient(180deg, rgba(107,33,168,0.8), transparent);
+  }
+  .bps-page-title { color: #fff; font-size: 11px; font-weight: 400; opacity: 0.8; }
+  .bps-page-name { color: #fff; font-size: 18px; font-weight: 900; }
+  .bps-modules { padding: 8px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .bps-mod {
+    background: rgba(255,255,255,0.07); border-radius: 14px; overflow: hidden;
+  }
+  .bps-mod-head {
+    padding: 10px 12px; font-size: 10px; font-weight: 800;
+    color: #fff; letter-spacing: 0.05em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .bps-mod-body { padding: 0 12px 12px; }
+  .bps-timer {
+    font-size: 32px; font-weight: 900; color: #fff;
+    display: block; margin-bottom: 6px;
+  }
+  .bps-presets { display: flex; gap: 4px; }
+  .bps-preset {
+    background: rgba(255,255,255,0.1); border-radius: 8px;
+    padding: 4px 8px; font-size: 9px; font-weight: 700; color: #fff;
+  }
+  .bps-preset.active { background: var(--purple); }
+
+  .bps-grader-input {
+    background: rgba(255,255,255,0.06); border-radius: 10px;
+    height: 36px; width: 100%;
+    display: flex; align-items: center; padding: 0 10px;
+    font-size: 8px; color: rgba(255,255,255,0.4);
+    margin-bottom: 6px;
+  }
+  .bps-grade-btn {
+    background: linear-gradient(90deg, #f472b6, #db2777);
+    border-radius: 8px; padding: 6px 10px;
+    font-size: 8px; font-weight: 800; color: #fff;
+    display: flex; align-items: center; gap: 4px;
+    width: 100%;
+  }
+
+  .bps-flashcard {
+    background: rgba(99,102,241,0.2); border-radius: 10px;
+    padding: 8px; margin-bottom: 4px; font-size: 8px;
+  }
+  .bps-fc-q { color: var(--purple); font-weight: 800; font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .bps-fc-text { color: #fff; margin-top: 2px; }
+  .bps-fc-hint { color: rgba(255,255,255,0.4); font-size: 7px; margin-top: 2px; }
+
+  /* ── LEADERBOARD ── */
+  .leaderboard-section { background: linear-gradient(180deg, transparent, rgba(251,191,36,0.04), transparent); }
+  .lb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; margin-top: 2rem; }
+  @media (max-width: 768px) { .lb-grid { grid-template-columns: 1fr; } }
+  .lb-card {
+    background: var(--bg3); border: 1px solid rgba(251,191,36,0.15);
+    border-radius: 24px; overflow: hidden;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  }
+  .lb-header {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    padding: 1.2rem 1.5rem;
+    display: flex; align-items: center; gap: 0.8rem;
+  }
+  .lb-trophy { font-size: 28px; }
+  .lb-header-text { color: #fff; font-weight: 900; font-size: 1rem; }
+  .lb-header-sub { color: rgba(255,255,255,0.75); font-size: 0.75rem; font-weight: 600; }
+  .lb-row {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row:hover { background: rgba(255,255,255,0.03); }
+  .lb-rank { font-family: 'Cinzel', serif; font-weight: 700; font-size: 1rem; min-width: 30px; }
+  .lb-rank.r1 { color: var(--gold); }
+  .lb-rank.r2 { color: #c0c0c0; }
+  .lb-rank.r3 { color: #cd7f32; }
+  .lb-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .lb-info { flex: 1; }
+  .lb-name { font-weight: 800; font-size: 0.9rem; }
+  .lb-level { color: var(--muted); font-size: 0.75rem; font-weight: 600; }
+  .lb-xp { text-align: right; }
+  .lb-xp-val { color: var(--teal); font-weight: 800; font-size: 0.95rem; display: block; }
+  .lb-verified { font-size: 0.65rem; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ── BOSS SECTION ── */
+  .boss-section { text-align: center; }
+  .boss-arena {
+    position: relative; max-width: 700px; margin: 3rem auto 0;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 28px; padding: 3rem 2rem;
+    overflow: hidden;
+  }
+  .boss-arena::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 30%, rgba(244,114,182,0.1), transparent 70%);
+    pointer-events: none;
+  }
+  .boss-emoji { font-size: 5rem; display: block; margin-bottom: 1rem; animation: bossFloat 4s ease-in-out infinite; }
+  .boss-name { font-family: 'Cinzel', serif; font-size: 1.5rem; font-weight: 700; color: var(--pink); margin-bottom: 0.5rem; }
+  .boss-hp-wrap { max-width: 300px; margin: 0 auto 2rem; }
+  .boss-hp-label { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; color: var(--muted); margin-bottom: 0.4rem; }
+  .boss-hp-bar { height: 12px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; }
+  .boss-hp-fill { height: 100%; background: linear-gradient(90deg, #ff4d7d, #ff8ba7); border-radius: 6px; width: 60%; transition: width 1s; }
+  .boss-desc { color: var(--muted); font-size: 0.9rem; font-weight: 600; max-width: 450px; margin: 0 auto; line-height: 1.6; }
+
+  /* ── CTA ── */
+  .cta-section { text-align: center; }
+  .cta-inner {
+    max-width: 700px; margin: 0 auto;
+    background: linear-gradient(135deg, rgba(0,229,160,0.08), rgba(167,139,250,0.08));
+    border: 1px solid rgba(0,229,160,0.2); border-radius: 32px;
+    padding: 5rem 3rem;
+    position: relative; overflow: hidden;
+  }
+  .cta-inner::before {
+    content: ''; position: absolute;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    background: conic-gradient(from 0deg, transparent, rgba(0,229,160,0.03), transparent, rgba(167,139,250,0.03), transparent);
+    animation: rotateBg 20s linear infinite;
+    pointer-events: none;
+  }
+  .cta-title {
+    font-family: 'Cinzel', serif; font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700; margin-bottom: 1rem; position: relative;
+  }
+  .cta-sub { color: var(--muted); font-size: 1.05rem; font-weight: 600; margin-bottom: 2.5rem; position: relative; }
+  .cta-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; position: relative; }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative; z-index: 1; text-align: center;
+    padding: 2.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 0.85rem; font-weight: 600;
+  }
+  footer a { color: var(--teal); text-decoration: none; }
+  .footer-logo {
+    font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 700;
+    color: var(--teal); display: block; margin-bottom: 0.5rem;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    max-width: 1100px; margin: 0 auto;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+  @keyframes bossFloat {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-10px) rotate(3deg); }
+  }
+  @keyframes rotateBg {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes xpFloat {
+    0% { opacity: 0; transform: translateY(0); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-80px); }
+  }
+
+  /* ── SCROLL REVEAL ── */
+  .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+
+  @media (max-width: 600px) {
+    nav { padding: 1rem 1.2rem; }
+    .fb1, .fb2, .fb3 { display: none; }
+    .feat-card { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="logo-icon">⚔️</div>
+    QuestLog
+  </div>
+  <a href="/app" class="nav-cta">Launch App ↗</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    Generative AI · Education · UAE 🇦🇪
+  </div>
+
+  <h1 class="hero-title">
+    <span class="line-teal">Study.</span>
+    <span class="line-white">Level Up.</span>
+    <span class="line-gold">Conquer.</span>
+  </h1>
+
+  <p class="hero-sub">QuestLog turns your homework into quests, your streaks into power, and your grind into an epic adventure.</p>
+
+  <div class="hero-actions">
+    <a href="/app" class="btn-primary">Start Your Quest ⚔️</a>
+    <a href="#features" class="btn-secondary">See Features</a>
+  </div>
+
+  <!-- Phone mockup -->
+  <div class="phone-wrap">
+    <div class="phone-glow"></div>
+
+    <!-- Floating badges -->
+    <div class="float-badge fb1">
+      <span class="fb-icon">⚡</span>
+      <div>
+        <div class="fb-label">XP Earned</div>
+        <div class="fb-val">+350 XP</div>
+      </div>
+    </div>
+    <div class="float-badge fb2">
+      <span class="fb-icon">🏆</span>
+      <div>
+        <div class="fb-label">Global Rank</div>
+        <div class="fb-val">#6</div>
+      </div>
+    </div>
+    <div class="float-badge fb3">
+      <span class="fb-icon">🔥</span>
+      <div>
+        <div class="fb-label">Streak</div>
+        <div class="fb-val">14 Days</div>
+      </div>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-notch"></div>
+      <div class="phone-screen">
+        <div class="ps-topbar">
+          <div class="ps-level">7</div>
+          <div class="ps-bars">
+            <div class="ps-bar hp"></div>
+            <div class="ps-bar mp"></div>
+            <div class="ps-bar xp"></div>
+          </div>
+          <div class="ps-gold">🪙 420</div>
+        </div>
+        <div class="ps-hero-section">
+          <div class="ps-board-title">⚔️ Your Quest Board</div>
+          <div class="ps-battle">
+            <span style="font-size:24px">🧑</span>
+            <span class="ps-vs">VS</span>
+            <div class="ps-boss-wrap">
+              <span class="ps-boss-icon">👹</span>
+              <div class="ps-boss-bar-wrap"><div class="ps-boss-bar"></div></div>
+              <div class="ps-boss-label">Procrastination Demon</div>
+            </div>
+          </div>
+        </div>
+        <div class="ps-section">
+          <div class="ps-sec-title">✅ To-Do's 3/6</div>
+          <div class="ps-task ps-task-done">
+            <div class="ps-task-dot"></div>
+            <span>Define Contract in Islam</span>
+          </div>
+          <div class="ps-task ps-task-done">
+            <div class="ps-task-dot"></div>
+            <span>Write three elements of a contract</span>
+          </div>
+          <div class="ps-task">
+            <div class="ps-task-dot"></div>
+            <span>Two types per Shariah</span>
+          </div>
+          <div class="ps-task">
+            <div class="ps-task-dot"></div>
+            <span>Legal definition of a contract</span>
+          </div>
+          <div class="ps-sec-title" style="margin-top:8px">⚡ Habits</div>
+          <div class="ps-task">
+            <div class="ps-task-dot"></div>
+            <span>Daily Reading</span>
+          </div>
+        </div>
+        <div class="ps-nav">
+          <div class="ps-nav-item">🏠</div>
+          <div class="ps-nav-item">📅</div>
+          <div class="ps-nav-item">📦</div>
+          <div class="ps-nav-item">📝</div>
+          <div class="ps-nav-item">🏆</div>
+          <div class="ps-nav-item">🛒</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-row reveal">
+  <div class="stat-item">
+    <span class="stat-num">6+</span>
+    <span class="stat-label">AI-Powered Study Tools</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">∞</span>
+    <span class="stat-label">Study Streaks Possible</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">5×</span>
+    <span class="stat-label">Focus Mode XP Multiplier</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">100%</span>
+    <span class="stat-label">Browser-Based, No Install</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-inner">
+    <span class="section-tag reveal">⚡ Features</span>
+    <h2 class="section-title reveal">Every tool a scholar needs,<br>wrapped in an RPG.</h2>
+    <p class="section-sub reveal">Generative AI meets gamification. Study smarter, not harder.</p>
+
+    <div class="features-grid">
+      <div class="feat-card fc-teal reveal reveal-delay-1">
+        <div class="feat-icon fi-teal">🃏</div>
+        <div class="feat-title">AI Flashcard Generator</div>
+        <div class="feat-desc">Snap a photo of your notes. QuestLog's AI instantly generates a full flashcard deck. Tap to flip, earn XP, and damage the boss with every correct answer.</div>
+        <span class="feat-tag ft-teal">Groq Vision AI</span>
+      </div>
+
+      <div class="feat-card fc-pink reveal reveal-delay-2">
+        <div class="feat-icon fi-pink">🛡️</div>
+        <div class="feat-title">AI Assignment Grader</div>
+        <div class="feat-desc">Paste your essay or assignment and get instant AI feedback with a score out of 100. Earn Verified XP that counts toward your global leaderboard rank.</div>
+        <span class="feat-tag ft-pink">Verified XP</span>
+      </div>
+
+      <div class="feat-card fc-purple reveal reveal-delay-3">
+        <div class="feat-icon fi-purple">📋</div>
+        <div class="feat-title">Syllabus Scanner</div>
+        <div class="feat-desc">Upload a syllabus image and watch AI automatically extract every deadline and convert them into quests on your quest board. Never miss a due date again.</div>
+        <span class="feat-tag ft-purple">Auto Quest Creation</span>
+      </div>
+
+      <div class="feat-card fc-gold reveal reveal-delay-4">
+        <div class="feat-icon fi-gold">⏱️</div>
+        <div class="feat-title">Focus Timer + Lo-Fi Radio</div>
+        <div class="feat-desc">Lock in with Pomodoro-style focus sessions (25–120 min). Focus mode activates a 5× XP multiplier and awards bonus gold when you finish your session.</div>
+        <span class="feat-tag ft-gold">5× XP Multiplier</span>
+      </div>
+
+      <div class="feat-card fc-teal reveal reveal-delay-1">
+        <div class="feat-icon fi-teal">👹</div>
+        <div class="feat-title">Boss Battle System</div>
+        <div class="feat-desc">Every completed task deals damage to the active boss. Defeat procrastination demons and assignment monsters to unlock rewards and level up your hero.</div>
+        <span class="feat-tag ft-teal">Combat Loop</span>
+      </div>
+
+      <div class="feat-card fc-purple reveal reveal-delay-2">
+        <div class="feat-icon fi-purple">🏪</div>
+        <div class="feat-title">Shop, Gear & Rewards</div>
+        <div class="feat-desc">Spend your hard-earned gold on weapons, armor, and consumables. Create custom real-world rewards like "Watch an episode" and redeem them with your coins.</div>
+        <span class="feat-tag ft-purple">Real Motivation</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- HOW IT WORKS -->
+<section>
+  <div class="section-inner">
+    <div class="how-grid">
+      <div>
+        <span class="section-tag reveal">🗺️ How It Works</span>
+        <h2 class="section-title reveal">Your study session,<br>reimagined.</h2>
+        <div class="steps">
+          <div class="step reveal reveal-delay-1">
+            <span class="step-num">01</span>
+            <div>
+              <div class="step-title">Add your quests</div>
+              <div class="step-desc">Log tasks, dailies, and habits. Use the AI Syllabus Scanner to auto-import deadlines from your course outline.</div>
+            </div>
+          </div>
+          <div class="step reveal reveal-delay-2">
+            <span class="step-num">02</span>
+            <div>
+              <div class="step-title">Start a focus session</div>
+              <div class="step-desc">Activate Focus Mode for 5× XP. Tune into the built-in lo-fi radio and lock in for your session.</div>
+            </div>
+          </div>
+          <div class="step reveal reveal-delay-3">
+            <span class="step-num">03</span>
+            <div>
+              <div class="step-title">Complete tasks, gain power</div>
+              <div class="step-desc">Every finished task earns XP, gold, and deals damage to the active boss. Level up your hero as you progress.</div>
+            </div>
+          </div>
+          <div class="step reveal reveal-delay-4">
+            <span class="step-num">04</span>
+            <div>
+              <div class="step-title">Climb the leaderboard</div>
+              <div class="step-desc">Submit assignments for AI grading to earn Verified XP — the prestige currency that ranks you among the Hall of Heroes.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="big-phone-wrap reveal">
+        <div class="big-phone-glow"></div>
+        <div class="big-phone">
+          <div class="big-phone-screen">
+            <div class="bps-header">
+              <div class="bps-page-title">Tools for scholars</div>
+              <div class="bps-page-name">⚗️ Quest Modules</div>
+            </div>
+            <div class="bps-modules">
+              <div class="bps-mod">
+                <div class="bps-mod-head">⏱️ FOCUS TIMER &amp; RADIO</div>
+                <div class="bps-mod-body">
+                  <span class="bps-timer">25:00</span>
+                  <div class="bps-presets">
+                    <div class="bps-preset active">25</div>
+                    <div class="bps-preset">50</div>
+                    <div class="bps-preset">75</div>
+                    <div class="bps-preset">100</div>
+                    <div class="bps-preset">2h</div>
+                  </div>
+                </div>
+              </div>
+              <div class="bps-mod">
+                <div class="bps-mod-head">🛡️ AI ASSIGNMENT GRADER</div>
+                <div class="bps-mod-body">
+                  <div class="bps-grader-input">Paste your essay or assignment here...</div>
+                  <div class="bps-grade-btn">🛡️ GRADE FOR VERIFIED XP</div>
+                </div>
+              </div>
+              <div class="bps-mod">
+                <div class="bps-mod-head">🃏 AI FLASHCARDS</div>
+                <div class="bps-mod-body">
+                  <div class="bps-flashcard">
+                    <div class="bps-fc-q">Q: Define "Contract" in Islam</div>
+                    <div class="bps-fc-hint">TAP TO FLIP &amp; ATTACK BOSS</div>
+                  </div>
+                  <div class="bps-flashcard">
+                    <div class="bps-fc-q">Q: Three elements of a valid contract</div>
+                    <div class="bps-fc-hint">TAP TO FLIP &amp; ATTACK BOSS</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- BOSS SECTION -->
+<section>
+  <div class="section-inner boss-section">
+    <span class="section-tag reveal">⚔️ Boss System</span>
+    <h2 class="section-title reveal">Your tasks are attacks.<br><span style="color:var(--pink)">Defeat procrastination.</span></h2>
+    <p class="section-sub reveal" style="margin: 0 auto 0; text-align:center">Spawn bosses from your quest board. Every completed task deals damage. Defeat them to unlock gear, rewards, and glory.</p>
+
+    <div class="boss-arena reveal">
+      <span class="boss-emoji">👹</span>
+      <div class="boss-name">Procrastination Demon</div>
+      <div class="boss-hp-wrap">
+        <div class="boss-hp-label"><span>HP</span><span id="bossHpText">60 / 100</span></div>
+        <div class="boss-hp-bar"><div class="boss-hp-fill" id="bossFill"></div></div>
+      </div>
+      <p class="boss-desc">Complete quests to strike. Each finished task deals damage. Defeat the demon to earn rare loot and unlock the next challenge.</p>
+      <br>
+      <button class="btn-primary" style="font-size:0.85rem;padding:0.7rem 1.6rem" onclick="attackBoss()">⚔️ Attack Boss</button>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- LEADERBOARD -->
+<section class="leaderboard-section">
+  <div class="section-inner">
+    <div class="lb-grid">
+      <div>
+        <span class="section-tag reveal">🏆 Leaderboard</span>
+        <h2 class="section-title reveal">Hall of Heroes.<br><span style="color:var(--gold)">Global Rankings.</span></h2>
+        <p class="section-sub reveal">Verified XP is earned only through AI-graded work. No grinding exploits. Pure academic achievement — ranked globally across all QuestLog scholars.</p>
+        <br>
+        <div class="reveal">
+          <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem">
+            <span style="color:var(--teal);font-size:1.2rem">✅</span>
+            <span style="font-weight:700;font-size:0.9rem">Verified Badge</span>
+          </div>
+          <p style="color:var(--muted);font-size:0.85rem;font-weight:600;line-height:1.6">Earn the verified scholar badge by submitting AI-graded work. It's a prestige mark that separates real achievers from the pack.</p>
+        </div>
+      </div>
+
+      <div class="lb-card reveal">
+        <div class="lb-header">
+          <span class="lb-trophy">🏆</span>
+          <div>
+            <div class="lb-header-text">Hall of Heroes</div>
+            <div class="lb-header-sub">Top 10 Legends · Ranked by Verified XP</div>
+          </div>
+        </div>
+        <div class="lb-row">
+          <span class="lb-rank r1">#1</span>
+          <div class="lb-avatar" style="background:rgba(251,191,36,0.15)">⚔️</div>
+          <div class="lb-info">
+            <div class="lb-name">Explorer #142a</div>
+            <div class="lb-level">★ Level 6 · 🔥 1d streak</div>
+          </div>
+          <div class="lb-xp">
+            <span class="lb-xp-val">3,365</span>
+            <span class="lb-verified">✅ Verified</span>
+          </div>
+        </div>
+        <div class="lb-row">
+          <span class="lb-rank r2">#2</span>
+          <div class="lb-avatar" style="background:rgba(167,139,250,0.15)">🛡️</div>
+          <div class="lb-info">
+            <div class="lb-name">Explorer #dbb6</div>
+            <div class="lb-level">★ Level 4 · 🔥 1d streak</div>
+          </div>
+          <div class="lb-xp">
+            <span class="lb-xp-val">1,535</span>
+            <span class="lb-verified">✅ Verified</span>
+          </div>
+        </div>
+        <div class="lb-row">
+          <span class="lb-rank r3">#3</span>
+          <div class="lb-avatar" style="background:rgba(0,229,160,0.15)">🏹</div>
+          <div class="lb-info">
+            <div class="lb-name">Explorer #ed1e</div>
+            <div class="lb-level">★ Level 3 · 🔥 1d streak</div>
+          </div>
+          <div class="lb-xp">
+            <span class="lb-xp-val">525</span>
+            <span style="font-size:0.65rem;color:var(--muted);font-weight:700">Unverified</span>
+          </div>
+        </div>
+        <div class="lb-row">
+          <span class="lb-rank" style="color:var(--muted)">#4</span>
+          <div class="lb-avatar" style="background:rgba(244,114,182,0.15)">🪄</div>
+          <div class="lb-info">
+            <div class="lb-name">Explorer #138b</div>
+            <div class="lb-level">★ Level 2 · 🔥 1d streak</div>
+          </div>
+          <div class="lb-xp">
+            <span class="lb-xp-val">440</span>
+            <span style="font-size:0.65rem;color:var(--muted);font-weight:700">Unverified</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="section-inner">
+    <div class="cta-inner reveal">
+      <h2 class="cta-title">Ready to begin<br><span style="color:var(--teal)">your quest?</span></h2>
+      <p class="cta-sub">No install. No limits. Just open, sign up, and start levelling up your academic life today.</p>
+      <div class="cta-actions">
+        <a href="/app" class="btn-primary">⚔️ Start for Free</a>
+        <a href="#features" class="btn-secondary">Watch Demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-logo">QuestLog ⚔️</span>
+  Built with ❤️ for the <a href="#">Safe AI Cup 2026</a> ·
+  Theme: Applications of Generative AI in Education ·
+  <a href="#">safeaicup.com</a>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  reveals.forEach(el => observer.observe(el));
+
+  // Boss attack interaction
+  let bossHp = 60;
+  function attackBoss() {
+    const dmg = Math.floor(Math.random() * 15) + 5;
+    bossHp = Math.max(0, bossHp - dmg);
+    document.getElementById('bossFill').style.width = bossHp + '%';
+    document.getElementById('bossHpText').textContent = bossHp + ' / 100';
+
+    const btn = document.querySelector('.boss-arena .btn-primary');
+    btn.textContent = `⚔️ -${dmg} HP!`;
+    setTimeout(() => {
+      if (bossHp <= 0) {
+        btn.textContent = '🎉 Boss Defeated!';
+        document.querySelector('.boss-emoji').textContent = '💀';
+        document.querySelector('.boss-name').textContent = 'Defeated!';
+        document.querySelector('.boss-name').style.color = 'var(--teal)';
+      } else {
+        btn.textContent = '⚔️ Attack Boss';
+      }
+    }, 800);
+  }
+</script>
+
+</body>
+</html>
