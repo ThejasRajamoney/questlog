@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Upload, Star, Sparkles, X, Loader2, ImagePlus } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Star, Sparkles, X, Loader2, ImagePlus } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useGame } from '../context/GameContext';
 
@@ -37,7 +37,6 @@ export function AssignmentGrader() {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   const { gainXp } = useGame();
 
-  const [imageFile, setImageFile] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
@@ -53,11 +52,11 @@ export function AssignmentGrader() {
       setError('Please upload an image file.');
       return;
     }
-    setImageFile(file);
     setResult(null);
     setError(null);
 
     const reader = new FileReader();
+    reader.onerror = () => setError('Failed to read the image file.');
     reader.onload = (e) => {
       const dataUrl = e.target.result;
       setImagePreview(dataUrl);
@@ -66,7 +65,10 @@ export function AssignmentGrader() {
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (e) => processFile(e.target.files[0]);
+  const handleFileChange = (e) => {
+    processFile(e.target.files[0]);
+    e.target.value = '';
+  };
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -75,7 +77,6 @@ export function AssignmentGrader() {
   };
 
   const clearImage = () => {
-    setImageFile(null);
     setImageBase64(null);
     setImagePreview(null);
     setResult(null);
@@ -127,15 +128,25 @@ export function AssignmentGrader() {
         }),
       });
 
-      if (!response.ok) throw new Error(`API error ${response.status}`);
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
 
-      const data = await response.json();
-      const raw = data.choices?.[0]?.message?.content?.trim();
+      if (!response.ok) {
+        throw new Error(data?.error?.message || data?.message || `API error ${response.status}`);
+      }
+
+      const raw = data.choices?.[0]?.message?.content?.trim() || '';
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('AI failed to return valid JSON.');
       const parsed = JSON.parse(jsonMatch[0]);
 
-      if (!parsed.stars || !parsed.verdict) throw new Error('Unexpected response format.');
+      if (!Number.isInteger(parsed.stars) || parsed.stars < 1 || parsed.stars > 5 || !parsed.verdict) {
+        throw new Error('Unexpected response format.');
+      }
       setResult(parsed);
       
       // Award Verified XP!

@@ -1,13 +1,15 @@
-import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { supabase } from '../lib/supabase';
 
 const GameContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGame = () => useContext(GameContext);
 
 export const GameProvider = ({ children }) => {
   const [session, setSession] = useState(null);
+  const [hydratedSessionId, setHydratedSessionId] = useState(null);
   
   const [stats, setStats] = useLocalStorage('questlog_stats', {
     xp: 0,
@@ -16,6 +18,7 @@ export const GameProvider = ({ children }) => {
     gold: 0,
     verifiedXp: 0,
     streak: 1,
+    goldEarnedToday: 0,
   });
 
   const [tasks, setTasks] = useLocalStorage('questlog_tasks', []);
@@ -38,38 +41,54 @@ export const GameProvider = ({ children }) => {
   // Use refs so gainXp always has the latest values without stale closures
   const isFocusingRef = useRef(false);
   const [isFocusing, _setIsFocusing] = useState(false);
-  const setIsFocusing = (val) => {
+  const setIsFocusing = useCallback((val) => {
     isFocusingRef.current = val;
     _setIsFocusing(val);
-  };
+  }, []);
 
   const dailyXpEarnedRef = useRef(dailyXpEarned);
   useEffect(() => { dailyXpEarnedRef.current = dailyXpEarned; }, [dailyXpEarned]);
 
+  const fetchedUserIdRef = useRef(null);
+  const hydratedUserIdRef = useRef(null);
+  const statsSyncTimeoutRef = useRef(null);
+  const taskSyncTimeoutRef = useRef(null);
+  const habitSyncTimeoutRef = useRef(null);
+  const rewardSyncTimeoutRef = useRef(null);
+  const flashcardSyncTimeoutRef = useRef(null);
+  const notificationTimeoutRef = useRef(null);
+
   // ── Midnight Reset Cron ─────────────────────────────────────────────
   useEffect(() => {
     const today = new Date().toDateString();
-    if (lastLoginDate !== today) {
-      // It's a new day! Calculate punishments for yesterday's missed tasks.
-      const missedTasks = tasks.filter(t => !t.completed && t.type === 'todo');
-      
-      if (missedTasks.length > 0) {
-        const damage = missedTasks.length * 5;
-        setStats(prev => ({
-          ...prev,
-          health: Math.max(0, prev.health - damage),
-          streak: 0 // Reset streak
-        }));
-        setTimeout(() => alert(`You left ${missedTasks.length} tasks unfinished yesterday! You took ${damage} damage and lost your streak!`), 1000);
-      } else if (tasks.filter(t => t.type === 'todo').length > 0) {
-        // Increase streak if they finished all tasks
-        setStats(prev => ({ ...prev, streak: prev.streak + 1 }));
-      }
+    if (lastLoginDate === today) return;
 
-      setDailyXpEarned(0);
-      setLastLoginDate(today);
+    const todoTasks = tasks.filter(t => t.type === 'todo');
+    const missedTasks = todoTasks.filter(t => !t.completed);
+
+    if (missedTasks.length > 0) {
+      const damage = missedTasks.length * 5;
+      setStats(prev => ({
+        ...prev,
+        health: Math.max(0, prev.health - damage),
+        streak: 0,
+        goldEarnedToday: 0,
+      }));
+      setTimeout(() => alert(`You left ${missedTasks.length} tasks unfinished yesterday! You took ${damage} damage and lost your streak!`), 1000);
+    } else if (todoTasks.length > 0) {
+      setStats(prev => ({
+        ...prev,
+        streak: prev.streak + 1,
+        goldEarnedToday: 0,
+      }));
+    } else {
+      setStats(prev => ({ ...prev, goldEarnedToday: 0 }));
     }
-  }, [lastLoginDate, tasks, setStats, setDailyXpEarned, setLastLoginDate]);
+
+    setTasks(prev => prev.map(t => (t.type === 'daily' ? { ...t, completed: false } : t)));
+    setDailyXpEarned(0);
+    setLastLoginDate(today);
+  }, [lastLoginDate, tasks, setStats, setTasks, setDailyXpEarned, setLastLoginDate]);
 
   // ── Auth listener ───────────────────────────────────────────────────
   useEffect(() => {
@@ -79,91 +98,122 @@ export const GameProvider = ({ children }) => {
   }, []);
 
   // ── Fetch from Supabase on login (runs ONCE per session) ────────────
-  const hasFetched = useRef(false);
   useEffect(() => {
-    if (!session?.user || hasFetched.current) return;
-    hasFetched.current = true;
+    if (!session?.user) {
+      fetchedUserIdRef.current = null;
+      hydratedUserIdRef.current = null;
+      return;
+    }
+
+    if (fetchedUserIdRef.current === session.user.id) return;
+    fetchedUserIdRef.current = session.user.id;
+    hydratedUserIdRef.current = null;
+    const userId = session.user.id;
 
     const fetchData = async () => {
       try {
         const { data: profile, error: pError } = await supabase
           .from('profiles')
           .select('xp, gold, health, mana, verified_xp, streak, gpa_data')
-          .eq('id', session.user.id)
+          .eq('id', userId)
           .maybeSingle();
+
+        if (fetchedUserIdRef.current !== userId) return;
         
         if (pError) {
           console.warn('Profile Fetch Error (PostgREST):', pError.message);
         } else if (profile) {
-          setStats({
-            xp: profile.xp || 0,
-            gold: profile.gold || 0,
-            health: profile.health || 100,
-            mana: profile.mana || 50,
-            verifiedXp: profile.verified_xp || 0,
-            streak: profile.streak || 1
-          });
-          if (profile.gpa_data) setGpaData(profile.gpa_data);
+          setStats(prev => ({
+            ...prev,
+            xp: profile.xp ?? 0,
+            gold: profile.gold ?? 0,
+            health: profile.health ?? 100,
+            mana: profile.mana ?? 50,
+            verifiedXp: profile.verified_xp ?? 0,
+            streak: profile.streak ?? 1,
+          }));
+          setGpaData(profile.gpa_data || { gpa: 4.0, target: 4.0, courses: [] });
         }
       } catch (err) {
         console.error('Critical Profile Fetch Error:', err);
       }
 
-      const { data: dbTasks } = await supabase.from('tasks').select('*').eq('user_id', session.user.id);
-      if (dbTasks?.length) setTasks(dbTasks.map(t => ({ ...t, createdAt: t.created_at })));
-      
-      const { data: dbHabits } = await supabase.from('habits').select('*').eq('user_id', session.user.id);
-      if (dbHabits?.length) setHabits(dbHabits.map(h => ({ ...h, habitType: h.habit_type, createdAt: h.created_at })));
+      if (fetchedUserIdRef.current !== userId) return;
 
-      const { data: dbRewards } = await supabase.from('rewards').select('*').eq('user_id', session.user.id);
-      if (dbRewards?.length) setRewards(dbRewards);
+      const { data: dbTasks, error: tasksError } = await supabase.from('tasks').select('*').eq('user_id', userId);
+      if (tasksError) {
+        console.warn('Tasks Fetch Error:', tasksError.message);
+      } else {
+        setTasks((dbTasks ?? []).map(t => ({ ...t, createdAt: t.created_at })));
+      }
 
-      const { data: dbFlash } = await supabase.from('flashcards').select('*').eq('user_id', session.user.id);
-      if (dbFlash?.length) setFlashcards(dbFlash);
+      if (fetchedUserIdRef.current !== userId) return;
+
+      const { data: dbHabits, error: habitsError } = await supabase.from('habits').select('*').eq('user_id', userId);
+      if (habitsError) {
+        console.warn('Habits Fetch Error:', habitsError.message);
+      } else {
+        setHabits((dbHabits ?? []).map(h => ({ ...h, habitType: h.habit_type, createdAt: h.created_at })));
+      }
+
+      if (fetchedUserIdRef.current !== userId) return;
+
+      const { data: dbRewards, error: rewardsError } = await supabase.from('rewards').select('*').eq('user_id', userId);
+      if (rewardsError) {
+        console.warn('Rewards Fetch Error:', rewardsError.message);
+      } else {
+        setRewards(dbRewards ?? []);
+      }
+
+      if (fetchedUserIdRef.current !== userId) return;
+
+      const { data: dbFlash, error: flashError } = await supabase.from('flashcards').select('*').eq('user_id', userId);
+      if (flashError) {
+        console.warn('Flashcards Fetch Error:', flashError.message);
+      } else {
+        setFlashcards(dbFlash ?? []);
+      }
+
+      if (fetchedUserIdRef.current !== userId) return;
+
+      hydratedUserIdRef.current = userId;
+      setHydratedSessionId(userId);
     };
 
     fetchData();
-  }, [session]);
+  }, [session, setStats, setGpaData, setTasks, setHabits, setRewards, setFlashcards]);
 
   // ── Debounced sync helpers ──────────────────────────────────────────
-  const debounce = (fn, ms) => {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), ms);
-    };
-  };
-
-  // Sync profile stats (debounced to prevent rapid re-saves)
-  const syncStats = useCallback(debounce(async (currentStats, currentSession, currentGpaData) => {
-    if (!currentSession?.user) return;
-    try {
-      // Conservative sync: only use basic columns that are standard
-      const { error } = await supabase.from('profiles').upsert({
-        id: currentSession.user.id,
-        xp: currentStats.xp || 0,
-        gold: currentStats.gold || 0,
-        health: currentStats.health || 100,
-        mana: currentStats.mana || 50,
-        streak: currentStats.streak || 1
-      });
-      if (error) console.warn('Supabase Sync Warning:', error.message);
-    } catch (e) {
-      console.error('Supabase Sync Error:', e);
-    }
-  }, 2000), []);
-
   useEffect(() => {
-    if (!session?.user) return;
-    syncStats(stats, session, gpaData);
-  }, [stats, gpaData, session]);
+    if (!session?.user || hydratedSessionId !== session.user.id) return undefined;
+
+    clearTimeout(statsSyncTimeoutRef.current);
+    statsSyncTimeoutRef.current = setTimeout(async () => {
+      try {
+        const { error } = await supabase.from('profiles').upsert({
+          id: session.user.id,
+          xp: stats.xp ?? 0,
+          gold: stats.gold ?? 0,
+          health: stats.health ?? 100,
+          mana: stats.mana ?? 50,
+          streak: stats.streak ?? 1,
+          gpa_data: gpaData,
+        });
+        if (error) console.warn('Supabase Sync Warning:', error.message);
+      } catch (e) {
+        console.error('Supabase Sync Error:', e);
+      }
+    }, 2000);
+
+    return () => clearTimeout(statsSyncTimeoutRef.current);
+  }, [stats, gpaData, session, hydratedSessionId]);
 
   // Sync tasks (debounced)
-  const syncTasksTimeout = useRef(null);
   useEffect(() => {
-    if (!session?.user) return;
-    clearTimeout(syncTasksTimeout.current);
-    syncTasksTimeout.current = setTimeout(async () => {
+    if (!session?.user || hydratedSessionId !== session.user.id) return undefined;
+
+    clearTimeout(taskSyncTimeoutRef.current);
+    taskSyncTimeoutRef.current = setTimeout(async () => {
       await supabase.from('tasks').delete().eq('user_id', session.user.id);
       if (tasks.length > 0) {
         await supabase.from('tasks').insert(tasks.map(t => ({
@@ -175,14 +225,16 @@ export const GameProvider = ({ children }) => {
         })));
       }
     }, 1500);
-  }, [tasks, session]);
+
+    return () => clearTimeout(taskSyncTimeoutRef.current);
+  }, [tasks, session, hydratedSessionId]);
 
   // Sync habits (debounced)
-  const syncHabitsTimeout = useRef(null);
   useEffect(() => {
-    if (!session?.user) return;
-    clearTimeout(syncHabitsTimeout.current);
-    syncHabitsTimeout.current = setTimeout(async () => {
+    if (!session?.user || hydratedSessionId !== session.user.id) return undefined;
+
+    clearTimeout(habitSyncTimeoutRef.current);
+    habitSyncTimeoutRef.current = setTimeout(async () => {
       await supabase.from('habits').delete().eq('user_id', session.user.id);
       if (habits.length > 0) {
         await supabase.from('habits').insert(habits.map(h => ({
@@ -194,14 +246,16 @@ export const GameProvider = ({ children }) => {
         })));
       }
     }, 1500);
-  }, [habits, session]);
+
+    return () => clearTimeout(habitSyncTimeoutRef.current);
+  }, [habits, session, hydratedSessionId]);
 
   // Sync rewards (debounced)
-  const syncRewardsTimeout = useRef(null);
   useEffect(() => {
-    if (!session?.user) return;
-    clearTimeout(syncRewardsTimeout.current);
-    syncRewardsTimeout.current = setTimeout(async () => {
+    if (!session?.user || hydratedSessionId !== session.user.id) return undefined;
+
+    clearTimeout(rewardSyncTimeoutRef.current);
+    rewardSyncTimeoutRef.current = setTimeout(async () => {
       await supabase.from('rewards').delete().eq('user_id', session.user.id);
       if (rewards.length > 0) {
         await supabase.from('rewards').insert(rewards.map(r => ({
@@ -212,14 +266,16 @@ export const GameProvider = ({ children }) => {
         })));
       }
     }, 1500);
-  }, [rewards, session]);
+
+    return () => clearTimeout(rewardSyncTimeoutRef.current);
+  }, [rewards, session, hydratedSessionId]);
 
   // Sync flashcards (debounced)
-  const syncFlashTimeout = useRef(null);
   useEffect(() => {
-    if (!session?.user) return;
-    clearTimeout(syncFlashTimeout.current);
-    syncFlashTimeout.current = setTimeout(async () => {
+    if (!session?.user || hydratedSessionId !== session.user.id) return undefined;
+
+    clearTimeout(flashcardSyncTimeoutRef.current);
+    flashcardSyncTimeoutRef.current = setTimeout(async () => {
       await supabase.from('flashcards').delete().eq('user_id', session.user.id);
       if (flashcards.length > 0) {
         await supabase.from('flashcards').insert(flashcards.map(f => ({
@@ -230,37 +286,8 @@ export const GameProvider = ({ children }) => {
         })));
       }
     }, 1500);
-  }, [flashcards, session]);
-
-  // ── Daily reset ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const today = new Date().toDateString();
-    if (lastLoginDate !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const wasActiveYesterday = lastLoginDate === yesterday.toDateString();
-      
-      // Calculate penalties for missed tasks
-      const incompleteCount = tasks.filter(t => !t.completed).length;
-      const hpPenalty = incompleteCount * 5;
-
-      setStats(prev => ({
-        ...prev,
-        streak: wasActiveYesterday ? prev.streak + 1 : 1,
-        hp: Math.max(0, prev.hp - hpPenalty)
-      }));
-
-      // Notify user of penalty
-      if (hpPenalty > 0) {
-        showNotification(`Midnight Reset: You missed ${incompleteCount} tasks and lost ${hpPenalty} HP!`, 'warning');
-      }
-
-      setTasks(prev => prev.map(t => t.type === 'daily' ? { ...t, completed: false } : t));
-      setLastLoginDate(today);
-      setDailyXpEarned(0);
-      setStats(prev => ({ ...prev, goldEarnedToday: 0 }));
-    }
-  }, [lastLoginDate, showNotification]);
+    return () => clearTimeout(flashcardSyncTimeoutRef.current);
+  }, [flashcards, session, hydratedSessionId]);
 
   // ── Derived values ──────────────────────────────────────────────────
   const level = Math.floor(Math.sqrt(stats.xp / 100)) + 1;
@@ -273,74 +300,82 @@ export const GameProvider = ({ children }) => {
   const [notification, setNotification] = useState(null);
 
   const showNotification = useCallback((message, type = 'info') => {
+    clearTimeout(notificationTimeoutRef.current);
     setNotification({ message, type, id: crypto.randomUUID() });
-    setTimeout(() => setNotification(null), 4000);
+    notificationTimeoutRef.current = setTimeout(() => setNotification(null), 4000);
   }, []);
+
+  useEffect(() => () => clearTimeout(notificationTimeoutRef.current), []);
   
   // FIX: Use refs to avoid stale closures
   const gainXp = useCallback((amount, options = {}) => {
     const { isVerified = false } = options;
     const XP_CAP = 500;
     const multiplier = isFocusingRef.current ? 5 : 1;
-    const finalAmount = amount * multiplier;
+    const requestedAmount = amount * multiplier;
 
-    if (!isVerified && dailyXpEarnedRef.current >= XP_CAP) {
-      showNotification("Daily XP Cap reached! Use the AI Assignment Grader for Verified XP!", "warning");
-      return false;
-    }
-
-    setStats(prev => ({ 
-      ...prev, 
-      xp: (prev.xp || 0) + finalAmount,
-      verifiedXp: isVerified ? (prev.verifiedXp || 0) + finalAmount : prev.verifiedXp
-    }));
-    
     if (!isVerified) {
+      const remaining = Math.max(0, XP_CAP - dailyXpEarnedRef.current);
+      if (remaining <= 0) {
+        showNotification("Daily XP Cap reached! Use the AI Assignment Grader for Verified XP!", "warning");
+        return false;
+      }
+
+      const finalAmount = Math.min(requestedAmount, remaining);
+      if (finalAmount < requestedAmount) {
+        showNotification(`Daily XP Cap reached! You earned ${finalAmount} XP.`, 'warning');
+      }
+      setStats(prev => ({
+        ...prev,
+        xp: (prev.xp || 0) + finalAmount,
+      }));
+
       setDailyXpEarned(prev => {
         const next = prev + finalAmount;
         dailyXpEarnedRef.current = next;
         return next;
       });
+      return true;
     }
+
+    setStats(prev => ({
+      ...prev,
+      xp: (prev.xp || 0) + requestedAmount,
+      verifiedXp: (prev.verifiedXp || 0) + requestedAmount,
+    }));
     return true;
-  }, [showNotification]);
+  }, [showNotification, setStats, setDailyXpEarned]);
 
   const gainGold = useCallback((amount) => {
     const GOLD_CAP = 100;
-    setStats(prev => {
-      const earnedToday = prev.goldEarnedToday || 0;
-      if (earnedToday >= GOLD_CAP) return prev;
-      return { 
-        ...prev, 
-        gold: (prev.gold || 0) + amount,
-        goldEarnedToday: earnedToday + amount
-      };
-    });
-  }, []);
+    const earnedToday = stats.goldEarnedToday || 0;
+    const remaining = Math.max(0, GOLD_CAP - earnedToday);
+    if (remaining <= 0) return;
+    const allowedAmount = Math.min(amount, remaining);
+    if (allowedAmount < amount) {
+      showNotification(`Daily gold cap reached! You earned ${allowedAmount} Gold.`, 'warning');
+    }
+    setStats(prev => ({
+      ...prev,
+      gold: (prev.gold || 0) + allowedAmount,
+      goldEarnedToday: earnedToday + allowedAmount
+    }));
+  }, [stats.goldEarnedToday, setStats, showNotification]);
 
   // FIX: spendGold now returns a boolean correctly using a ref
   const spendGold = useCallback((amount) => {
-    let canAfford = false;
-    setStats(prev => {
-      const currentGold = prev.gold || 0;
-      if (currentGold >= amount) {
-        canAfford = true;
-        return { ...prev, gold: currentGold - amount };
-      }
-      return prev;
-    });
-    // Use a small timeout to allow the state update to propagate
-    // We read from stats directly via closure at call time
-    return canAfford;
-  }, [stats.gold]);
+    if ((stats.gold || 0) < amount) return false;
+    setStats(prev => ({ ...prev, gold: (prev.gold || 0) - amount }));
+    return true;
+  }, [stats.gold, setStats]);
 
   const loseHealth = useCallback((amount) => {
     setStats(prev => ({ ...prev, health: Math.max(0, prev.health - amount) }));
-  }, []);
+  }, [setStats]);
 
   const useMana = useCallback((amount) => {
     setStats(prev => ({ ...prev, mana: Math.max(0, prev.mana - amount) }));
-  }, []);
+  }, [setStats]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();

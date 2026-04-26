@@ -1,6 +1,5 @@
-import React from 'react';
 import { useGame } from '../context/GameContext';
-import { Heart, Zap, Sparkles, Coins, Flame, LogOut } from 'lucide-react';
+import { Heart, Zap, Coins, Flame, LogOut } from 'lucide-react';
 
 export function Topbar() {
   const { stats, level, xpProgress, logout } = useGame();

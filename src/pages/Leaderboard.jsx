@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { supabase } from '../lib/supabase';
-import { Trophy, Star, Medal, Users, Loader2, ShieldCheck, Flame } from 'lucide-react';
+import { Trophy, Star, Medal, Loader2, ShieldCheck, Flame } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const RANK_COLORS = [
@@ -43,17 +43,16 @@ export function Leaderboard() {
 
   const myRank = globalUsers.findIndex(u => u.isCurrentUser) + 1;
 
-  // Use localStorage to track visits directly instead of through GameContext
-  const [visitCount, setVisitCount] = useState(0);
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(() => {
+    const visits = parseInt(localStorage.getItem('questlog_ranks_visits') || '0', 10);
+    return visits < 2;
+  });
 
   useEffect(() => {
+    if (!showModal) return;
     const visits = parseInt(localStorage.getItem('questlog_ranks_visits') || '0', 10);
-    if (visits < 2) {
-      setShowModal(true);
-      localStorage.setItem('questlog_ranks_visits', (visits + 1).toString());
-    }
-  }, []);
+    localStorage.setItem('questlog_ranks_visits', (visits + 1).toString());
+  }, [showModal]);
 
   return (
     <div className="space-y-4 pb-4">

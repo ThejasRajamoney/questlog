@@ -1,20 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { 
-  Timer, Brain, BookOpen, CheckCircle2, Plus, Play, Pause, RotateCcw, 
-  Loader2, Sparkles, ImagePlus, X, Flame, Music, GraduationCap, Grid,
-  Calculator, ChevronRight, Download, ShieldCheck
+  Timer, BookOpen, Plus, Play, Pause, RotateCcw,
+  Loader2, Sparkles, ImagePlus, Music, GraduationCap, Grid,
+  Calculator, Download, ShieldCheck
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 // ─── UTILS: IMAGE RESIZER ─────────────────────────────────────────────
 const resizeImage = (file, maxWidth = 2048) => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target.result;
+      img.onerror = () => reject(new Error('Failed to load image for resizing.'));
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let width = img.width;
@@ -28,17 +30,36 @@ const resizeImage = (file, maxWidth = 2048) => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not prepare image canvas.'));
+          return;
+        }
         ctx.drawImage(img, 0, 0, width, height);
         // Higher quality (0.9) so AI can read text clearly
         resolve(canvas.toDataURL('image/jpeg', 0.9));
       };
     };
+    reader.readAsDataURL(file);
   });
 };
 
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const FOCUS_PRESETS = [25, 50, 75, 100, 120];
+
+async function parseGroqResponse(response) {
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || payload?.message || `Groq request failed (${response.status})`);
+  }
+
+  return payload;
+}
+
 // ─── 1. AI FLASHCARD GENERATOR ────────────────────────────────────────
 function FlashcardModule() {
-  const { flashcards, setFlashcards, gainXp, activeBoss, setActiveBoss, showNotification } = useGame();
+  const { flashcards, setFlashcards, gainXp, gainGold, activeBoss, setActiveBoss, showNotification } = useGame();
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
@@ -49,10 +70,20 @@ function FlashcardModule() {
     const file = e.target.files[0];
     if (!file) return;
     setLoading(true);
-    const resizedDataUrl = await resizeImage(file);
-    setImagePreview(resizedDataUrl);
-    setImageBase64(resizedDataUrl.split(',')[1]);
-    setLoading(false);
+    try {
+      const resizedDataUrl = await resizeImage(file);
+      setImagePreview(resizedDataUrl);
+      setImageBase64(resizedDataUrl.split(',')[1]);
+      showNotification('Image uploaded. Ready to generate flashcards.', 'success');
+    } catch (err) {
+      console.error('Flashcard Upload Error:', err);
+      showNotification(err.message || 'Failed to upload image.', 'error');
+      setImagePreview(null);
+      setImageBase64(null);
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
   };
 
   const generate = async () => {
@@ -60,11 +91,11 @@ function FlashcardModule() {
     if (!imageBase64) return;
     setLoading(true);
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const response = await fetch(GROQ_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: 'llama-3.2-11b-vision-preview',
+          model: GROQ_VISION_MODEL,
           messages: [{ role: 'user', content: [
             { type: 'text', text: 'Generate 3-5 study flashcards from this image. Respond ONLY with a valid JSON array of objects, no extra text: [{"question": "...", "answer": "..."}]' },
             { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
@@ -74,7 +105,7 @@ function FlashcardModule() {
         })
       });
       
-      const data = await response.json();
+      const data = await parseGroqResponse(response);
       const content = data.choices?.[0]?.message?.content || '';
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error(`No JSON array found in response.`);
@@ -85,6 +116,7 @@ function FlashcardModule() {
       setImagePreview(null);
     } catch (err) { 
       console.error('Flashcard Error:', err);
+      showNotification(err.message || 'Flashcard generation failed.', 'error');
     } finally { setLoading(false); }
   };
 
@@ -96,10 +128,12 @@ function FlashcardModule() {
       setActiveBoss(prev => {
         const newHp = Math.max(0, prev.hp - 5);
         if (newHp === 0) {
+          const defeatedBossId = prev.id;
           setTimeout(() => {
             alert(`🎉 You defeated ${prev.name} by studying! You gained 50 XP and 20 Gold!`);
             gainXp(50);
-            setActiveBoss(null); // Assuming gainGold is imported if needed, skipping to avoid hook dependencies
+            gainGold(20);
+            setActiveBoss(current => (current?.id === defeatedBossId ? null : current));
           }, 300);
         }
         return { ...prev, hp: newHp };
@@ -162,7 +196,7 @@ function AIAssignmentGraderModule() {
     if (!text.trim() || !apiKey) return;
     setLoading(true);
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const response = await fetch(GROQ_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
@@ -175,7 +209,7 @@ function AIAssignmentGraderModule() {
           max_tokens: 300
         })
       });
-      const data = await response.json();
+      const data = await parseGroqResponse(response);
       const content = data.choices?.[0]?.message?.content || '';
       setFeedback(content);
       
@@ -183,7 +217,7 @@ function AIAssignmentGraderModule() {
       gainXp(150, { isVerified: true });
     } catch(e) {
       console.error(e);
-      showNotification('Failed to grade assignment.', 'error');
+      showNotification(e.message || 'Failed to grade assignment.', 'error');
     } finally {
       setLoading(false);
     }
@@ -229,9 +263,18 @@ function SyllabusModule() {
     const file = e.target.files[0];
     if (!file) return;
     setLoading(true);
-    const resizedDataUrl = await resizeImage(file);
-    setImageBase64(resizedDataUrl.split(',')[1]);
-    setLoading(false);
+    try {
+      const resizedDataUrl = await resizeImage(file);
+      setImageBase64(resizedDataUrl.split(',')[1]);
+      showNotification('Syllabus uploaded. Ready to scan.', 'success');
+    } catch (err) {
+      console.error('Syllabus Upload Error:', err);
+      showNotification(err.message || 'Failed to upload syllabus image.', 'error');
+      setImageBase64(null);
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
   };
 
   const scan = async () => {
@@ -239,11 +282,11 @@ function SyllabusModule() {
     if (!imageBase64) return;
     setLoading(true);
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const response = await fetch(GROQ_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: 'llama-3.2-11b-vision-preview',
+          model: GROQ_VISION_MODEL,
           messages: [{ role: 'user', content: [
             { 
               type: 'text', 
@@ -258,7 +301,7 @@ TASK: [name] | DATE: [date]`
         })
       });
 
-      const data = await response.json();
+      const data = await parseGroqResponse(response);
       const content = data.choices?.[0]?.message?.content?.trim() || '';
 
       const lines = content.split('\n');
@@ -286,7 +329,7 @@ TASK: [name] | DATE: [date]`
       showNotification(`Added ${newTasks.length} Quests to your board!`, 'success');
       setImageBase64(null);
     } catch (err) {
-      alert(`Scan Error: ${err.message}`);
+      showNotification(err.message || 'Scan failed.', 'error');
     } finally { 
       setLoading(false); 
     }
@@ -313,18 +356,18 @@ TASK: [name] | DATE: [date]`
 // ─── 3. MASTERY HEATMAP ───────────────────────────────────────────────
 function HeatmapModule() {
   const { tasks } = useGame();
-  const completedTasks = tasks.filter(t => t.completed);
+  const completedTasks = tasks.filter(t => t.completed).length;
   const days = Array.from({ length: 28 });
   
   return (
     <div className="py-2">
       <div className="grid grid-cols-7 gap-1.5">
         {days.map((_, i) => {
-          const intensity = Math.random() > 0.7 ? 'bg-orange-500' : Math.random() > 0.4 ? 'bg-orange-200' : 'bg-gray-100';
+          const intensity = i < completedTasks ? 'bg-orange-500' : i < Math.min(days.length, completedTasks + 8) ? 'bg-orange-200' : 'bg-gray-100';
           return <div key={i} className={clsx("w-full aspect-square rounded-sm transition-all", intensity)} />;
         })}
       </div>
-      <p className="text-[10px] text-gray-400 mt-2 text-center font-bold uppercase tracking-widest">Consistency: On Fire! 🔥</p>
+      <p className="text-[10px] text-gray-400 mt-2 text-center font-bold uppercase tracking-widest">Consistency: {completedTasks} quests completed</p>
     </div>
   );
 }
@@ -399,11 +442,41 @@ function GPAModule() {
 
 // ─── FOCUS TIMER ──────────────────────────────────────────────────────
 function FocusTimerModule() {
-  const { gainXp, gainGold, setIsFocusing } = useGame();
-  const [seconds, setSeconds] = useState(25 * 60);
+  const { gainXp, gainGold, setIsFocusing, showNotification } = useGame();
+  const [focusMinutes, setFocusMinutes] = useLocalStorage('questlog_focus_minutes', 25);
   const [running, setRunning] = useState(false);
   const [showRadio, setShowRadio] = useState(false);
   const timerRef = useRef(null);
+  const hasActiveSessionRef = useRef(false);
+
+  const focusLength = FOCUS_PRESETS.includes(Number(focusMinutes)) ? Number(focusMinutes) : 25;
+  const [seconds, setSeconds] = useState(() => focusLength * 60);
+
+  useEffect(() => () => {
+    clearInterval(timerRef.current);
+    setIsFocusing(false);
+  }, [setIsFocusing]);
+
+  useEffect(() => {
+    if (!running && !hasActiveSessionRef.current) {
+      setSeconds(focusLength * 60);
+    }
+  }, [focusLength, running]);
+
+  const selectFocusPreset = (minutes) => {
+    if (running) return;
+    setFocusMinutes(minutes);
+    hasActiveSessionRef.current = false;
+    setSeconds(minutes * 60);
+  };
+
+  const resetTimer = () => {
+    clearInterval(timerRef.current);
+    setRunning(false);
+    setIsFocusing(false);
+    hasActiveSessionRef.current = false;
+    setSeconds(focusLength * 60);
+  };
 
   const toggle = () => {
     if (running) {
@@ -411,16 +484,21 @@ function FocusTimerModule() {
       setRunning(false);
       setIsFocusing(false);
     } else {
+      hasActiveSessionRef.current = true;
+      if (seconds <= 0) {
+        setSeconds(focusLength * 60);
+      }
       timerRef.current = setInterval(() => {
         setSeconds((s) => {
           if (s <= 1) {
             clearInterval(timerRef.current);
             setRunning(false);
             setIsFocusing(false);
+            hasActiveSessionRef.current = false;
             gainXp(50);
             gainGold(10);
             showNotification("Pomodoro finished! You gained massive XP and Gold.", "success");
-            return 25 * 60;
+            return focusLength * 60;
           }
           return s - 1;
         });
@@ -434,7 +512,7 @@ function FocusTimerModule() {
 
   return (
     <div className="flex flex-col py-2 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="text-4xl font-black text-gray-800 tracking-tighter tabular-nums">
           {formatTime(seconds)}
         </div>
@@ -442,7 +520,7 @@ function FocusTimerModule() {
           <button onClick={() => setShowRadio(!showRadio)} className={clsx("w-10 h-10 rounded-full flex items-center justify-center transition-all", showRadio ? "bg-violet-100 text-violet-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200")}>
             <Music size={18} />
           </button>
-          <button onClick={() => setSeconds(25 * 60)} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-all">
+          <button onClick={resetTimer} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-all">
             <RotateCcw size={18} />
           </button>
           <button onClick={toggle} className="w-12 h-12 rounded-full bg-violet-500 text-white flex items-center justify-center shadow-lg active:scale-95 transition-all">
@@ -450,7 +528,30 @@ function FocusTimerModule() {
           </button>
         </div>
       </div>
-      
+
+      <div className="grid grid-cols-5 gap-2">
+        {FOCUS_PRESETS.map((minutes) => {
+          const isActive = focusLength === minutes;
+          return (
+            <button
+              key={minutes}
+              type="button"
+              onClick={() => selectFocusPreset(minutes)}
+              disabled={running}
+              className={clsx(
+                'rounded-xl border px-2 py-2 text-sm font-black transition-all',
+                isActive
+                  ? 'bg-violet-500 text-white border-violet-500 shadow-md'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-violet-300 hover:bg-violet-50',
+                running && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              {minutes === 120 ? '2h' : minutes}
+            </button>
+          );
+        })}
+      </div>
+
       {showRadio && (
         <div className="w-full h-24 rounded-xl overflow-hidden animate-in slide-in-from-top-2">
           <iframe 
@@ -478,7 +579,6 @@ const MODULE_DATA = [
 ];
 
 export function Project() {
-  const { showNotification } = useGame();
   return (
     <div className="space-y-4 pb-4 page-enter">
       <div className="pb-2">
@@ -486,7 +586,7 @@ export function Project() {
         <h1 className="text-white text-2xl font-black tracking-tight">Quest Modules</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {MODULE_DATA.map((mod) => (
           <div key={mod.id} className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden flex flex-col slide-up">
             <div className={clsx("px-5 py-4 border-b border-gray-50 flex items-center gap-3", mod.bg)}>

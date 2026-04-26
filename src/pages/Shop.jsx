@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Coins, Plus, Trash2, Tag, Gift, Sword, ShoppingBag, Shield } from 'lucide-react';
+import { Coins, Plus, Tag, Gift, Sword, ShoppingBag } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const MARKET_ITEMS = [
@@ -34,7 +34,7 @@ const MARKET_ITEMS = [
 ];
 
 export function Shop() {
-  const { stats, spendGold, rewards, setRewards, inventory, setInventory, equipped, setEquipped } = useGame();
+  const { stats, spendGold, rewards, setRewards, inventory, setInventory, equipped, setEquipped, showNotification } = useGame();
   const [activeTab, setActiveTab] = useState('market'); // 'market' or 'custom'
   const [newTitle, setNewTitle] = useState('');
   const [newCost, setNewCost] = useState('');
@@ -42,12 +42,12 @@ export function Shop() {
   const addReward = (e) => {
     e.preventDefault();
     if (!newTitle.trim() || !newCost) return;
-    setRewards([{ id: crypto.randomUUID(), title: newTitle.trim(), cost: Number(newCost) }, ...rewards]);
+    setRewards(prev => [{ id: crypto.randomUUID(), title: newTitle.trim(), cost: Number(newCost) }, ...prev]);
     setNewTitle('');
     setNewCost('');
   };
 
-  const deleteReward = (id) => setRewards(rewards.filter(r => r.id !== id));
+  const deleteReward = (id) => setRewards(prev => prev.filter(r => r.id !== id));
 
   const buyReward = (reward) => {
     if (spendGold(reward.cost)) {
@@ -79,7 +79,7 @@ export function Shop() {
     }
     
     if (spendGold(item.cost)) {
-      setInventory([{ ...item, instanceId: crypto.randomUUID(), acquiredAt: new Date().toISOString() }, ...inventory]);
+      setInventory(prev => [{ ...item, instanceId: crypto.randomUUID(), acquiredAt: new Date().toISOString() }, ...prev]);
       showNotification(`Bought ${item.title}! Added to Inventory.`, 'success');
     } else {
       showNotification(`Not enough gold! Need ${item.cost - (stats.gold || 0)} more.`, 'warning');

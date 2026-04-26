@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
 import { LogIn, UserPlus, ShieldCheck, Sparkles, Sword, Trophy, Play } from 'lucide-react';
@@ -64,13 +64,23 @@ export function Auth() {
   const tryDemo = async () => {
     setLoading(true);
     setMessage({ type: 'success', text: 'Initializing Demo Environment...' });
-    // First try to login
-    const { error } = await supabase.auth.signInWithPassword({ email: 'demo@questlog.com', password: 'hackathon2026' });
-    if (error) {
-      // If user doesn't exist, sign up
-      await supabase.auth.signUp({ email: 'demo@questlog.com', password: 'hackathon2026' });
+    try {
+      const loginResult = await supabase.auth.signInWithPassword({ email: 'demo@questlog.com', password: 'hackathon2026' });
+      if (!loginResult.error) {
+        setMessage({ type: 'success', text: 'Victory! Logging in...' });
+        return;
+      }
+
+      const signUpResult = await supabase.auth.signUp({ email: 'demo@questlog.com', password: 'hackathon2026' });
+      if (signUpResult.error) {
+        throw signUpResult.error;
+      }
+      setMessage({ type: 'success', text: 'Demo account created. Please sign in again if needed.' });
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Demo login failed.' });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

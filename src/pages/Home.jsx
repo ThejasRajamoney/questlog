@@ -1,10 +1,22 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { Plus, Trash2, CheckCircle2, RotateCcw } from 'lucide-react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
+const HABIT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const INITIAL_CLOCK = Date.now();
+
+function formatCooldown(ms) {
+  const totalMinutes = Math.ceil(ms / (60 * 1000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 // ─── XP Float Animation ──────────────────────────────────────────────
-function XpBubble({ id, onDone, type = 'xp' }) {
+function XpBubble({ onDone, type = 'xp' }) {
   return (
     <div
       className={clsx(
@@ -19,23 +31,19 @@ function XpBubble({ id, onDone, type = 'xp' }) {
 }
 
 // ─── HABIT ITEM (with +/- circle buttons, Habitica style) ─────────────
-function HabitItem({ habit, onPlus, onMinus, onDelete }) {
+function HabitItem({ habit, onPlus, onMinus, onDelete, locked, cooldownText }) {
   const [xpPop, setXpPop] = useState(false);
 
   const handlePlus = () => {
+    if (locked) return;
     onPlus(habit.id);
     setXpPop(true);
   };
 
   const handleMinus = () => {
+    if (locked) return;
     if (onMinus) onMinus(habit.id);
   };
-
-  const typeColor = {
-    good: 'bg-sky-400',
-    bad: 'bg-orange-400',
-    both: 'bg-emerald-500',
-  }[habit.habitType] || 'bg-emerald-500';
 
   return (
     <div className="group relative flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 slide-up">
@@ -43,7 +51,11 @@ function HabitItem({ habit, onPlus, onMinus, onDelete }) {
       {(habit.habitType === 'both' || habit.habitType === 'good') && (
         <button
           onClick={handlePlus}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform active:scale-90 shadow-md bg-sky-400"
+          disabled={locked}
+          className={clsx(
+            'w-11 h-11 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform active:scale-90 shadow-md bg-sky-400',
+            locked && 'opacity-40 cursor-not-allowed'
+          )}
         >
           +
         </button>
@@ -51,16 +63,27 @@ function HabitItem({ habit, onPlus, onMinus, onDelete }) {
       {(habit.habitType === 'both' || habit.habitType === 'bad') && (
         <button
           onClick={handleMinus}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform active:scale-90 shadow-md bg-orange-400"
+          disabled={locked}
+          className={clsx(
+            'w-11 h-11 rounded-full flex items-center justify-center text-white text-xl font-black shrink-0 transition-transform active:scale-90 shadow-md bg-orange-400',
+            locked && 'opacity-40 cursor-not-allowed'
+          )}
         >
           −
         </button>
       )}
 
       {/* Label */}
-      <span className="flex-1 text-gray-800 font-semibold text-[15px] leading-tight">
-        {habit.text}
-      </span>
+      <div className="flex-1 min-w-0">
+        <span className="block truncate text-gray-800 font-semibold text-[15px] leading-tight">
+          {habit.text}
+        </span>
+        {locked && (
+          <span className="block text-[10px] font-black uppercase tracking-wider text-rose-500 mt-0.5">
+            Locked {cooldownText}
+          </span>
+        )}
+      </div>
 
       {/* Delete */}
       <button
@@ -73,8 +96,8 @@ function HabitItem({ habit, onPlus, onMinus, onDelete }) {
       {/* XP/Gold pop */}
       {xpPop && (
         <>
-          <XpBubble id={habit.id} onDone={() => setXpPop(false)} />
-          <div className="absolute top-2 left-1/3 -translate-x-1/2"><XpBubble id={habit.id} type="gold" onDone={() => {}} /></div>
+          <XpBubble onDone={() => setXpPop(false)} />
+          <div className="absolute top-2 left-1/3 -translate-x-1/2"><XpBubble type="gold" onDone={() => {}} /></div>
         </>
       )}
     </div>
@@ -130,8 +153,8 @@ function TaskItem({ task, onComplete, onDelete }) {
 
       {xpPop && (
         <>
-          <XpBubble id={task.id} onDone={() => setXpPop(false)} />
-          <div className="absolute top-2 left-1/3 -translate-x-1/2"><XpBubble id={task.id} type="gold" onDone={() => {}} /></div>
+          <XpBubble onDone={() => setXpPop(false)} />
+          <div className="absolute top-2 left-1/3 -translate-x-1/2"><XpBubble type="gold" onDone={() => {}} /></div>
         </>
       )}
     </div>
@@ -190,18 +213,58 @@ function SectionCard({ title, emoji, children }) {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────
 export function Home() {
-  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, loseHealth, equipped, activeBoss, setActiveBoss } = useGame();
+  const { tasks, setTasks, habits, setHabits, gainXp, gainGold, loseHealth, equipped, activeBoss, setActiveBoss, showNotification } = useGame();
+  const [habitCooldowns, setHabitCooldowns] = useLocalStorage('questlog_habit_cooldowns', {});
+  const [clockTick, setClockTick] = useState(INITIAL_CLOCK);
+  const habitCooldownRef = useRef(habitCooldowns);
+
+  useEffect(() => {
+    const tick = () => setClockTick(Date.now());
+    tick();
+    const timer = setInterval(tick, 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    habitCooldownRef.current = habitCooldowns;
+  }, [habitCooldowns]);
+
+  const getHabitRemainingFrom = (cooldowns, id) => {
+    const lastUsedAt = cooldowns[id];
+    if (!lastUsedAt) return 0;
+    return Math.max(0, HABIT_COOLDOWN_MS - (clockTick - lastUsedAt));
+  };
+
+  const getHabitRemaining = (id) => getHabitRemainingFrom(habitCooldowns, id);
+
+  const lockHabit = (id) => {
+    const now = clockTick;
+    habitCooldownRef.current = { ...habitCooldownRef.current, [id]: now };
+    setHabitCooldowns(prev => ({ ...prev, [id]: now }));
+  };
+
+  const runHabitAction = (id, action) => {
+    const remaining = getHabitRemainingFrom(habitCooldownRef.current, id);
+    if (remaining > 0) {
+      showNotification(`That habit is locked for ${formatCooldown(remaining)}.`, 'warning');
+      return;
+    }
+
+    action(id);
+    lockHabit(id);
+  };
 
   const damageBoss = (amount) => {
     if (!activeBoss) return;
     setActiveBoss(prev => {
       const newHp = Math.max(0, prev.hp - amount);
       if (newHp === 0) {
+        const defeatedBossId = prev.id;
         setTimeout(() => {
           showNotification(`You defeated ${prev.name}! +50 XP, +20 Gold!`, 'success');
           gainXp(50);
           gainGold(20);
-          setActiveBoss(null);
+          setActiveBoss(current => (current?.id === defeatedBossId ? null : current));
         }, 300);
       }
       return { ...prev, hp: newHp };
@@ -271,7 +334,14 @@ export function Home() {
     loseHealth(5);
   };
 
-  const deleteHabit = (id) => setHabits(prev => prev.filter(h => h.id !== id));
+  const deleteHabit = (id) => {
+    setHabits(prev => prev.filter(h => h.id !== id));
+    setHabitCooldowns(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
 
   const dailies = tasks.filter((t) => t.type === 'daily');
   const todos = tasks.filter((t) => t.type === 'todo');
@@ -336,15 +406,20 @@ export function Home() {
         {habits.length === 0 && (
           <p className="text-gray-400 text-sm text-center py-2">No habits yet. Add one below!</p>
         )}
-        {habits.map((h) => (
-          <HabitItem
-            key={h.id}
-            habit={h}
-            onPlus={scoreHabit}
-            onMinus={penaltyHabit}
-            onDelete={deleteHabit}
-          />
-        ))}
+        {habits.map((h) => {
+          const remaining = getHabitRemaining(h.id);
+          return (
+            <HabitItem
+              key={h.id}
+              habit={h}
+              locked={remaining > 0}
+              cooldownText={formatCooldown(remaining)}
+              onPlus={(id) => runHabitAction(id, scoreHabit)}
+              onMinus={(id) => runHabitAction(id, penaltyHabit)}
+              onDelete={deleteHabit}
+            />
+          );
+        })}
 
         {/* Quick-add with type selector */}
         <HabitAddForm onAdd={addHabit} />

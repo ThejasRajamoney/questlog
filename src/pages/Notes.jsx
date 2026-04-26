@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Plus, Trash2, Edit2, Save, X, StickyNote } from 'lucide-react';
+import { Plus, Trash2, Save, X, StickyNote } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const NOTE_COLORS = [
@@ -27,7 +27,7 @@ export function Notes() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setNotes([newNote, ...notes]);
+    setNotes(prev => [newNote, ...prev]);
     setEditingId(newNote.id);
     setEditTitle(newNote.title);
     setEditBody(newNote.body);
@@ -40,7 +40,7 @@ export function Notes() {
   };
 
   const saveNote = () => {
-    setNotes(notes.map(n =>
+    setNotes(prev => prev.map(n =>
       n.id === editingId
         ? { ...n, title: editTitle, body: editBody, updatedAt: new Date().toISOString() }
         : n
@@ -49,7 +49,7 @@ export function Notes() {
   };
 
   const deleteNote = (id) => {
-    setNotes(notes.filter(n => n.id !== id));
+    setNotes(prev => prev.filter(n => n.id !== id));
     if (editingId === id) setEditingId(null);
   };
 

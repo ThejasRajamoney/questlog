@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { Music, X, ChevronUp, ChevronDown, ExternalLink } from 'lucide-react';
+import { Music, ChevronUp, ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export function PersistentRadio() {
@@ -10,7 +10,7 @@ export function PersistentRadio() {
 
   const getEmbedUrl = (url) => {
     if (url.includes('embed')) return url;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : url;
   };
